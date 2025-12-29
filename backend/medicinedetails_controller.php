@@ -3,7 +3,11 @@
 session_start();
 require_once "connection.php";
 
+// Ensure the connection variable from connection.php is available
+global $connMySQL;
+$conn = $connMySQL;
 
+// Auth Check
 if (!isset($_SESSION['adminID'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
@@ -11,32 +15,26 @@ if (!isset($_SESSION['adminID'])) {
 }
 
 header("Content-Type: application/json");
-
 $action = $_GET['action'] ?? $_POST['action'] ?? null;
 
 try {
-
     switch ($action) {
 
         /* ================= READ ================= */
         case 'read':
-            $data = [];
-            $res = $conn->query("
-                SELECT medicineID, medicineName,
-                       stockQuantity, expiryDate,
-                       dosageInstructions, unitPrice
+            // SQL UPDATED: snake_case columns
+            $stmt = $conn->query("
+                SELECT medicine_id, medicine_name,
+                       stock_quantity, expiry_date,
+                       dosage_instructions, unit_price
                 FROM MEDICINE
-                ORDER BY medicineName
+                ORDER BY medicine_name
             ");
 
-            while ($row = $res->fetch_assoc()) {
-                $data[] = $row;
-            }
+            // PDO: fetchAll instead of fetch_assoc loop
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            echo json_encode([
-                'status' => 'success',
-                'data'   => $data
-            ]);
+            echo json_encode(['status' => 'success', 'data' => $data]);
             break;
 
         /* ================= CREATE ================= */
@@ -46,74 +44,66 @@ try {
             $expiry = $_POST['expiryDate'];
             $dosage = $_POST['dosage'];
             $price  = $_POST['unitPrice'];
+            $admin  = $_POST['admin_id'] ?? null; 
 
-            // Generate new ID
-            $idRes = $conn->query("
-                SELECT MAX(CAST(SUBSTRING(medicineID,2) AS UNSIGNED)) AS maxID
+            // PDO: query() returns a statement, fetchColumn() gets the single value
+            $stmt = $conn->query("
+                SELECT MAX(CAST(SUBSTRING(medicine_id, 2) AS UNSIGNED)) 
                 FROM MEDICINE
             ");
-            $num   = ($idRes->fetch_assoc()['maxID'] ?? 0) + 1;
+            $maxID = $stmt->fetchColumn();
+            $num   = ($maxID ?? 0) + 1;
             $newID = "M" . str_pad($num, 3, "0", STR_PAD_LEFT);
 
-            $stmt = $conn->prepare("
-                INSERT INTO MEDICINE
-                (medicineID, medicineName, stockQuantity,
-                 expiryDate, dosageInstructions, unitPrice)
-                VALUES (?,?,?,?,?,?)
-            ");
-            $stmt->bind_param(
-                "ssisss",
-                $newID, $name, $stock, $expiry, $dosage, $price
-            );
-            $stmt->execute();
+            // SQL: snake_case columns
+            $sql = "INSERT INTO MEDICINE 
+                    (medicine_id, medicine_name, stock_quantity, expiry_date, dosage_instructions, unit_price, admin_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)";
+            
+            $stmt = $conn->prepare($sql);
+            
+            // PDO: Pass values array to execute()
+            $stmt->execute([$newID, $name, $stock, $expiry, $dosage, $price, $admin]);
 
             echo json_encode(['status' => 'success']);
             break;
 
         /* ================= UPDATE ================= */
         case 'update':
-            $stmt = $conn->prepare("
-                UPDATE MEDICINE
-                SET medicineName=?, stockQuantity=?, expiryDate=?,
-                    dosageInstructions=?, unitPrice=?
-                WHERE medicineID=?
-            ");
-            $stmt->bind_param(
-                "sissss",
-                $_POST['name'],
-                $_POST['stock'],
-                $_POST['expiryDate'],
-                $_POST['dosage'],
-                $_POST['unitPrice'],
+            // SQL: snake_case columns
+            $sql = "UPDATE MEDICINE 
+                    SET medicine_name=?, stock_quantity=?, expiry_date=?, dosage_instructions=?, unit_price=? 
+                    WHERE medicine_id=?";
+            
+            $stmt = $conn->prepare($sql);
+            
+            // PDO: Pass values array to execute()
+            $stmt->execute([
+                $_POST['name'], 
+                $_POST['stock'], 
+                $_POST['expiryDate'], 
+                $_POST['dosage'], 
+                $_POST['unitPrice'], 
                 $_POST['id']
-            );
-            $stmt->execute();
+            ]);
 
             echo json_encode(['status' => 'success']);
             break;
 
         /* ================= DELETE ================= */
         case 'delete':
-            $stmt = $conn->prepare("
-                DELETE FROM MEDICINE WHERE medicineID=?
-            ");
-            $stmt->bind_param("s", $_POST['id']);
-            $stmt->execute();
+            // SQL: snake_case columns
+            $stmt = $conn->prepare("DELETE FROM MEDICINE WHERE medicine_id=?");
+            $stmt->execute([$_POST['id']]);
 
             echo json_encode(['status' => 'success']);
             break;
 
         default:
-            echo json_encode([
-                'status'  => 'error',
-                'message' => 'Invalid action'
-            ]);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
     }
 
 } catch (Exception $e) {
-    echo json_encode([
-        'status'  => 'error',
-        'message' => $e->getMessage()
-    ]);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
-
+?>

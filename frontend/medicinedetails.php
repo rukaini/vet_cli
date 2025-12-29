@@ -23,10 +23,8 @@ include "../frontend/adminheader.php";
     <title>Medicine Invetory Details</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
@@ -63,7 +61,6 @@ include "../frontend/adminheader.php";
 
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <!-- PAGE TITLE -->
         <div class="mb-8 border-b pb-4">
             <h1 class="text-3xl font-bold" style="color:var(--primary-color);">
                 Medicine Inventory
@@ -73,12 +70,10 @@ include "../frontend/adminheader.php";
             </p>
         </div>
 
-        <!-- NOTIFICATION -->
         <div id="notification"
             class="hidden fixed top-5 right-5 z-50 p-4 rounded-lg shadow-lg font-semibold text-sm">
         </div>
 
-        <!-- FORM -->
         <div class="card bg-white p-6 rounded-lg mb-10" id="formCard">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
                 <h2 class="text-xl font-bold" id="formTitle" style="color:var(--primary-color);">
@@ -91,6 +86,7 @@ include "../frontend/adminheader.php";
 
             <form id="medicineForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input type="hidden" id="medicineId">
+                <input type="hidden" id="admin_id_input" value="<?php echo $_SESSION['adminID']; ?>">
 
                 <div>
                     <label class="text-sm font-medium">Medicine Name</label>
@@ -127,7 +123,6 @@ include "../frontend/adminheader.php";
             </form>
         </div>
 
-        <!-- TABLE -->
         <div class="card bg-white p-6 rounded-lg">
             <div class="flex justify-between mb-4">
                 <h2 class="text-xl font-bold" style="color:var(--primary-color);">
@@ -182,8 +177,8 @@ include "../frontend/adminheader.php";
             tbody.innerHTML = '';
 
             const filtered = medicineInventory.filter(m =>
-                m.medicineName.toLowerCase().includes(term) ||
-                m.medicineID.toLowerCase().includes(term)
+                m.medicine_name.toLowerCase().includes(term) || // SNAKE_CASE
+                m.medicine_id.toLowerCase().includes(term)      // SNAKE_CASE
             );
 
             if (!filtered.length) {
@@ -192,18 +187,19 @@ include "../frontend/adminheader.php";
             }
 
             filtered.forEach(m => {
+                // NOTE: Using snake_case keys from DB
                 tbody.innerHTML += `
         <tr class="hover:bg-gray-50">
-            <td class="px-4 py-2 text-xs font-mono">${m.medicineID}</td>
-            <td class="px-4 py-2">${m.medicineName}</td>
-            <td class="px-4 py-2">${m.stockQuantity}</td>
-            <td class="px-4 py-2">${m.expiryDate}</td>
-            <td class="px-4 py-2">RM ${parseFloat(m.unitPrice).toFixed(2)}</td>
+            <td class="px-4 py-2 text-xs font-mono">${m.medicine_id}</td>
+            <td class="px-4 py-2">${m.medicine_name}</td>
+            <td class="px-4 py-2">${m.stock_quantity}</td>
+            <td class="px-4 py-2">${m.expiry_date}</td>
+            <td class="px-4 py-2">RM ${parseFloat(m.unit_price).toFixed(2)}</td>
             <td class="px-4 py-2 text-center">
-                <button onclick="editMedicine('${m.medicineID}')" class="text-teal-600 mr-3">
+                <button onclick="editMedicine('${m.medicine_id}')" class="text-teal-600 mr-3">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button onclick="deleteMedicine('${m.medicineID}')" class="text-red-600">
+                <button onclick="deleteMedicine('${m.medicine_id}')" class="text-red-600">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
@@ -218,11 +214,13 @@ include "../frontend/adminheader.php";
             const payload = {
                 action: document.getElementById('medicineId').value ? 'update' : 'create',
                 id: document.getElementById('medicineId').value,
-                name: name.value,
-                stock: stock.value,
-                expiryDate: expiryDate.value,
-                unitPrice: unitPrice.value,
-                dosage: dosage.value
+                name: document.getElementById('name').value,
+                stock: document.getElementById('stock').value,
+                expiryDate: document.getElementById('expiryDate').value,
+                unitPrice: document.getElementById('unitPrice').value,
+                dosage: document.getElementById('dosage').value,
+                // Pass admin ID
+                admin_id: document.getElementById('admin_id_input').value
             };
 
             await fetch('../backend/medicinedetails_controller.php', {
@@ -239,13 +237,14 @@ include "../frontend/adminheader.php";
 
         /* ================= HELPERS ================= */
         function editMedicine(id) {
-            const m = medicineInventory.find(x => x.medicineID === id);
-            medicineId.value = m.medicineID;
-            name.value = m.medicineName;
-            stock.value = m.stockQuantity;
-            expiryDate.value = m.expiryDate;
-            unitPrice.value = m.unitPrice;
-            dosage.value = m.dosageInstructions;
+            // SNAKE_CASE
+            const m = medicineInventory.find(x => x.medicine_id === id);
+            document.getElementById('medicineId').value = m.medicine_id;
+            document.getElementById('name').value = m.medicine_name;
+            document.getElementById('stock').value = m.stock_quantity;
+            document.getElementById('expiryDate').value = m.expiry_date;
+            document.getElementById('unitPrice').value = m.unit_price;
+            document.getElementById('dosage').value = m.dosage_instructions;
         }
 
         async function deleteMedicine(id) {
@@ -264,8 +263,8 @@ include "../frontend/adminheader.php";
         }
 
         function resetForm() {
-            medicineForm.reset();
-            medicineId.value = '';
+            document.getElementById('medicineForm').reset();
+            document.getElementById('medicineId').value = '';
         }
 
         document.addEventListener('DOMContentLoaded', fetchInventory);

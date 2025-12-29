@@ -6,6 +6,8 @@
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/select_query_pg.php';
 require_once __DIR__ . '/select_query_mysqli.php';
+// Needed for Pet Info
+require_once __DIR__ . '/select_query_maria.php';
 
 // Get database connection
 $conn = getMariaDBConnection();
@@ -40,15 +42,16 @@ if (!empty($appointmentID)) {
  */
 function getMedicines($conn) {
    try {
+       // SQL UPDATED: medicine_id, medicine_name, unit_price, stock_quantity
        // First try with stock filter
-       $stmt = $conn->prepare("SELECT medicineID, medicineName, unitPrice, stockQuantity FROM MEDICINE WHERE stockQuantity > 0 ORDER BY medicineName ASC");
+       $stmt = $conn->prepare("SELECT medicine_id, medicine_name, unit_price, stock_quantity FROM MEDICINE WHERE stock_quantity > 0 ORDER BY medicine_name ASC");
        $stmt->execute();
        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
        
        // If no medicines with stock, get all medicines
        if (empty($result)) {
            error_log("No medicines with stock found, fetching all medicines");
-           $stmt = $conn->prepare("SELECT medicineID, medicineName, unitPrice, stockQuantity FROM MEDICINE ORDER BY medicineName ASC");
+           $stmt = $conn->prepare("SELECT medicine_id, medicine_name, unit_price, stock_quantity FROM MEDICINE ORDER BY medicine_name ASC");
            $stmt->execute();
            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
        }
@@ -72,14 +75,15 @@ function getNextTreatmentID($conn) {
    }
   
    try {
+       // SQL UPDATED: treatment_id
        // Get the highest treatment ID and increment
-       $sql = "SELECT treatmentID FROM TREATMENT ORDER BY CAST(SUBSTRING(treatmentID, 2) AS UNSIGNED) DESC LIMIT 1";
+       $sql = "SELECT treatment_id FROM TREATMENT ORDER BY CAST(SUBSTRING(treatment_id, 2) AS UNSIGNED) DESC LIMIT 1";
        $stmt = $conn->query($sql);
        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-       if ($row && !empty($row['treatmentID'])) {
+       if ($row && !empty($row['treatment_id'])) {
            // Extract number from ID (e.g., "T005" -> 5)
-           $number = intval(substr($row['treatmentID'], 1));
+           $number = intval(substr($row['treatment_id'], 1));
            $nextNumber = $number + 1;
            return "T" . str_pad($nextNumber, 3, "0", STR_PAD_LEFT);
        }
@@ -115,9 +119,27 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
        $treatmentStatus = $postData['treatmentStatus'];
        $diagnosis = trim($postData['diagnosis'] ?? '');
       
+       // --- FRIEND REQUEST: PET HISTORY LOGIC ---
+       if ($treatmentStatus === 'Deceased') {
+           // We need pet_id from MariaDB to log this
+           $apptData = getAppointmentByIdMaria($appointmentID);
+           $petID_Log = $postData['petID'] ?? $apptData['pet_id'] ?? 'Unknown';
+           $ownerID_Log = $apptData['owner_id'] ?? 'Unknown';
+
+           // Insert into PET_HISTORY (using snake_case)
+           $stmtHist = $conn->prepare("INSERT INTO PET_HISTORY (pet_id, owner_id, event_type, description) VALUES (?, ?, ?, ?)");
+           $stmtHist->execute([
+               $petID_Log, 
+               $ownerID_Log, 
+               'Deceased', 
+               "Pet marked deceased during treatment $treatmentID. Diagnosis: $diagnosis"
+           ]);
+       }
+
        // A. Insert Treatment Record
+       // SQL UPDATED: treatment_id, treatment_date, etc.
        $sql_insert = "INSERT INTO TREATMENT 
-           (treatmentID, treatmentDate, treatmentDescription, treatmentStatus, diagnosis, treatmentFee, vetID, appointmentID)
+           (treatment_id, treatment_date, treatment_description, treatment_status, diagnosis, treatment_fee, vet_id, appointment_id)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
        
        $stmt = $conn->prepare($sql_insert);
@@ -141,9 +163,12 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 
        // Check if there are medicines to process
        if (!empty($medicine_ids) && is_array($medicine_ids)) {
-           $stmt_details = $conn->prepare("INSERT INTO MEDICINE_DETAILS (quantityUsed, dosage, instruction, medicineCost, treatmentID, medicineID) VALUES (?, ?, ?, ?, ?, ?)");
-           $stmt_stock   = $conn->prepare("UPDATE MEDICINE SET stockQuantity = stockQuantity - ? WHERE medicineID = ?");
-           $stmt_price   = $conn->prepare("SELECT unitPrice, stockQuantity FROM MEDICINE WHERE medicineID = ?");
+           // SQL UPDATED: quantity_used, medicine_cost, treatment_id, medicine_id
+           $stmt_details = $conn->prepare("INSERT INTO MEDICINE_DETAILS (quantity_used, dosage, instruction, medicine_cost, treatment_id, medicine_id) VALUES (?, ?, ?, ?, ?, ?)");
+           // SQL UPDATED: stock_quantity, medicine_id
+           $stmt_stock   = $conn->prepare("UPDATE MEDICINE SET stock_quantity = stock_quantity - ? WHERE medicine_id = ?");
+           // SQL UPDATED: unit_price, stock_quantity, medicine_id
+           $stmt_price   = $conn->prepare("SELECT unit_price, stock_quantity FROM MEDICINE WHERE medicine_id = ?");
 
            foreach ($medicine_ids as $key => $medID) {
                $medID = trim($medID);
@@ -167,12 +192,13 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
                    throw new Exception("Medicine ID {$medID} not found.");
                }
                
-               if ($qty > $price_row['stockQuantity']) {
-                   throw new Exception("Insufficient stock for medicine {$medID}. Available: {$price_row['stockQuantity']}, Requested: {$qty}");
+               // Array keys updated to snake_case from DB
+               if ($qty > $price_row['stock_quantity']) {
+                   throw new Exception("Insufficient stock for medicine {$medID}. Available: {$price_row['stock_quantity']}, Requested: {$qty}");
                }
 
                // Calculate cost
-               $unitPrice = (float)$price_row['unitPrice'];
+               $unitPrice = (float)$price_row['unit_price'];
                $cost = $unitPrice * $qty;
                $total_medicine_cost += $cost;
 
@@ -194,7 +220,8 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
        // C. Update Total Fee (Base Fee + Medicine Cost)
        if ($total_medicine_cost > 0) {
            $finalFee = $baseFee + $total_medicine_cost;
-           $stmt_update = $conn->prepare("UPDATE TREATMENT SET treatmentFee = ? WHERE treatmentID = ?");
+           // SQL UPDATED: treatment_fee, treatment_id
+           $stmt_update = $conn->prepare("UPDATE TREATMENT SET treatment_fee = ? WHERE treatment_id = ?");
            $stmt_update->execute([$finalFee, $treatmentID]);
        }
 
@@ -219,15 +246,17 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
  * Get list of treatments with pagination and sorting
  */
 function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
+   // This function exists in select_query_mysqli.php which we updated.
+   // If you call this specific function in this file, we update it too.
    try {
        $offset = ($page - 1) * $limit;
       
-       // Determine sort order
+       // Determine sort order (SQL UPDATED: treatment_id, treatment_date)
        $order_clause = match ($sort_by) {
-           'id_asc'   => 'CAST(SUBSTRING(t.treatmentID, 2) AS UNSIGNED) ASC',
-           'id_desc'  => 'CAST(SUBSTRING(t.treatmentID, 2) AS UNSIGNED) DESC',
-           'date_asc' => 't.treatmentDate ASC, CAST(SUBSTRING(t.treatmentID, 2) AS UNSIGNED) ASC',
-           default    => 't.treatmentDate DESC, CAST(SUBSTRING(t.treatmentID, 2) AS UNSIGNED) DESC',
+           'id_asc'   => 'CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) ASC',
+           'id_desc'  => 'CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) DESC',
+           'date_asc' => 't.treatment_date ASC, CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) ASC',
+           default    => 't.treatment_date DESC, CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) DESC',
        };
 
        // Build WHERE clause for appointment filtering
@@ -235,7 +264,8 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
        $params = [];
        
        if (!empty($appointmentID)) {
-           $where_clause = "WHERE t.appointmentID = ?";
+           // SQL UPDATED: appointment_id
+           $where_clause = "WHERE t.appointment_id = ?";
            $params = [$appointmentID];
        }
 
@@ -247,9 +277,9 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
        
        $total_pages = $total_rows > 0 ? ceil($total_rows / $limit) : 1;
 
-       // Get paginated data
-       $sql = "SELECT t.treatmentID, t.treatmentDate, t.treatmentDescription, 
-                      t.treatmentStatus, t.diagnosis, t.treatmentFee, t.vetID
+       // Get paginated data (SQL UPDATED: Select snake_case columns)
+       $sql = "SELECT t.treatment_id, t.treatment_date, t.treatment_description, 
+                      t.treatment_status, t.diagnosis, t.treatment_fee, t.vet_id
                FROM TREATMENT t
                $where_clause
                ORDER BY $order_clause 
@@ -311,7 +341,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
            'success' => 'true',
            'sort' => $sort_by,
            'appointment_id' => $appointmentID,
-           'vet_id' => $vetID
+           'vet_id' => $vetID,
+           'treatment_id' => $_POST['treatmentID'] // FRIEND REQUEST: Add ID for Tya
        ];
        
        if (isset($_SESSION['vetName']) && !empty($_SESSION['vetName'])) {
@@ -352,4 +383,3 @@ try {
     $insert_error = "Error loading data: " . $e->getMessage();
 }
 ?>
-

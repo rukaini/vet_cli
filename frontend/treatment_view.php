@@ -8,43 +8,17 @@ if (!isset($_SESSION['vetID'], $_GET['appointment_id'])) {
 $vetID = $_SESSION['vetID'];              // TRUST THIS
 $appointmentID = $_GET['appointment_id'];
 
-
-
-// if (isset($_GET['vet_id'])) {
-//     $_SESSION['vetID'] = trim($_GET['vet_id']);
-// }
-
-// die($_GET['vet_id']);
-
-/* =========================
-   AUTH CHECK
-========================= */
-// if (!isset($_SESSION['vetID'])) {
-//     die("Unauthorized");
-// }
-
-/* =========================
-   CAPTURE APPOINTMENT
-========================= */
-// if (isset($_GET['appointment_id'])) {
-//     $_SESSION['appointmentID'] = trim($_GET['appointment_id']);
-// }
-
-// if (!isset($_SESSION['appointmentID'])) {
-//     die("No appointment selected");
-// }
-
-
-
-/* =========================
-   LOAD BACKEND LOGIC
-========================= */
 require_once "../backend/treatment_controller.php";
+
+// Fetch Pet Info from MariaDB (snake_case)
+$petInfo = ['pet_id' => '-', 'owner_id' => '-'];
+if (function_exists('getAppointmentByIdMaria')) {
+    $data = getAppointmentByIdMaria($appointmentID);
+    if($data) $petInfo = $data;
+}
 
 include "../frontend/vetheader.php";
 ?>
-
-
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script> tailwind.config = { corePlugins: { preflight: false } } </script>
@@ -78,15 +52,34 @@ include "../frontend/vetheader.php";
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <?php 
-        if ($insert_success) echo '<div class="success-message rounded-md font-semibold">Treatment record added successfully! Total fee includes medicine cost.</div>';
-        if ($insert_error) echo '<div class="error-message rounded-md font-semibold">Insertion Failed: ' . htmlspecialchars($insert_error) . '</div>';
-        ?>
+        <div class="custom-card p-4 rounded-lg mb-6 bg-white">
+            <h3 class="text-lg font-bold mb-3" style="color: var(--primary-color);">Patient Information</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div><span class="font-bold">Appt ID:</span> <?php echo $appointmentID; ?></div>
+                <div><span class="font-bold">Pet ID:</span> <?php echo $petInfo['pet_id']; ?></div>
+                <div><span class="font-bold">Owner ID:</span> <?php echo $petInfo['owner_id']; ?></div>
+                <div><span class="font-bold">Service:</span> <?php echo $petInfo['service_id'] ?? '-'; ?></div>
+            </div>
+        </div>
+
+        <?php if ($insert_success): ?>
+            <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
+                <span>Treatment record added successfully! Total fee includes medicine cost.</span>
+                <a href="http://10.48.74.197/vet_clinic/frontend/payment_gateway.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>" 
+                   class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
+                   Proceed to Payment (Tya)
+                </a>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($insert_error) echo '<div class="error-message rounded-md font-semibold">Insertion Failed: ' . htmlspecialchars($insert_error) . '</div>'; ?>
 
         <div class="custom-card p-6 md:p-8 rounded-lg mb-10">
             <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-6 border-b-2 pb-3" style="color: var(--primary-color); border-color: var(--secondary-color);">Add New Treatment</h2>
             
             <form action="" method="POST" id="treatmentForm">
+                <input type="hidden" name="petID" value="<?php echo $petInfo['pet_id']; ?>">
+                
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Treatment ID </label>
@@ -106,6 +99,7 @@ include "../frontend/vetheader.php";
                             <option value="Pending">Pending</option>
                             <option value="In Progress">In Progress</option>
                             <option value="Completed">Completed</option>
+                            <option value="Deceased" class="text-red-600 font-bold">Deceased (Pet Died)</option>
                         </select>
                     </div>
                     <div class="lg:col-span-1">
@@ -161,17 +155,6 @@ include "../frontend/vetheader.php";
             <div id="treatmentListContent" class="space-y-4">
                 <div class="flex justify-end mb-4">
                     <form method="GET" action="" class="flex items-center space-x-3">
-                        <?php if (isset($_GET['vetID'])): ?><input type="hidden" name="vetID" value="<?php echo htmlspecialchars($_GET['vetID']); ?>"><?php endif; ?>
-                        <?php if (isset($_GET['vetname'])): ?><input type="hidden" name="vetname" value="<?php echo htmlspecialchars($_GET['vetname']); ?>"><?php endif; ?>
-                        <?php if (isset($_GET['appointmentID'])): ?><input type="hidden" name="appointmentID" value="<?php echo htmlspecialchars($appointmentID); ?>"><?php endif; ?>
-                        
-                        <label for="sort" class="text-sm font-medium text-gray-700">Sort By:</label>
-                        <select name="sort" id="sort" class="p-2 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition duration-150">
-                            <option value="date_desc" <?php echo $sort_by == 'date_desc' ? 'selected' : ''; ?>>Latest Date</option>
-                            <option value="date_asc" <?php echo $sort_by == 'date_asc' ? 'selected' : ''; ?>>Oldest Date</option>
-                            <option value="id_desc" <?php echo $sort_by == 'id_desc' ? 'selected' : ''; ?>>ID (Highest to Lowest)</option>
-                            <option value="id_asc" <?php echo $sort_by == 'id_asc' ? 'selected' : ''; ?>>ID (Lowest to Highest)</option>
-                        </select>
                         <button type="submit" style="background-color: var(--primary-color);" class="text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition duration-300 text-sm">Apply Sort</button>
                     </form>
                 </div>
@@ -188,51 +171,27 @@ include "../frontend/vetheader.php";
                     </tr></thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                     <?php foreach ($treatments as $row): 
-                        $status_class = match ($row['treatmentStatus']) {
+                        // UPDATED TO SNAKE_CASE KEYS FROM DB
+                        $status_class = match ($row['treatment_status']) {
                             'Completed' => 'bg-green-100 text-green-700 ring-1 ring-green-600/20',
                             'In Progress' => 'bg-blue-100 text-blue-700 ring-1 ring-blue-600/20',
                             'Pending' => 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-600/20',
                             default => 'bg-gray-100 text-gray-700 ring-1 ring-gray-600/20',
                         };
-                        $diag = !empty($row['diagnosis']) ? $row['diagnosis'] : $row['treatmentDescription'];
+                        $diag = !empty($row['diagnosis']) ? $row['diagnosis'] : $row['treatment_description'];
                     ?>
                         <tr>
-                            <td class="px-6 py-4 text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['treatmentID']); ?></td>
-                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['treatmentDate']); ?></td>
-                            <td class="px-6 py-4"><span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full <?php echo $status_class; ?>"><?php echo htmlspecialchars($row['treatmentStatus']); ?></span></td>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['treatment_id']); ?></td>
+                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['treatment_date']); ?></td>
+                            <td class="px-6 py-4"><span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full <?php echo $status_class; ?>"><?php echo htmlspecialchars($row['treatment_status']); ?></span></td>
                             <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-xs"><?php echo htmlspecialchars($diag); ?></td>
-                            <td class="px-6 py-4 text-sm font-bold text-gray-900">RM <?php echo number_format($row['treatmentFee'], 2); ?></td>
-                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['vetID']); ?></td>
+                            <td class="px-6 py-4 text-sm font-bold text-gray-900">RM <?php echo number_format($row['treatment_fee'], 2); ?></td>
+                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['vet_id']); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody></table></div>
                     
-                    <?php if ($total_pages > 1): ?>
-                        <div class="mt-4 flex items-center justify-between">
-                            <?php 
-                            $url_params = "&sort={$sort_by}";
-                            if (isset($_GET['appointmentID'])) $url_params .= "&appointmentID=" . urlencode($appointmentID);
-                            if (isset($_GET['vetID'])) $url_params .= "&vet_id=" . urlencode($_GET['vet_id']);
-                            if (isset($_GET['vetname'])) $url_params .= "&vetname=" . urlencode($_GET['vetname']);
-                            
-                            $prev_disabled = $page <= 1 ? 'opacity-50 cursor-not-allowed' : '';
-                            $prev_url = "?page=" . ($page - 1) . $url_params;
-                            
-                            $next_disabled = $page >= $total_pages ? 'opacity-50 cursor-not-allowed' : '';
-                            $next_url = "?page=" . ($page + 1) . $url_params;
-                            ?>
-                            
-                            <a href="<?php echo $page <= 1 ? '#' : $prev_url; ?>" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 <?php echo $prev_disabled; ?>" style="color: var(--primary-color);">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>Previous
-                            </a>
-                            <span class="text-sm font-medium text-gray-700">Page <span class="font-bold"><?php echo $page; ?></span> of <span class="font-bold"><?php echo $total_pages; ?></span></span>
-                            <a href="<?php echo $page >= $total_pages ? '#' : $next_url; ?>" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 <?php echo $next_disabled; ?>" style="color: var(--primary-color);">
-                                Next<svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </a>
-                        </div>
-                    <?php endif; ?>
-
-                <?php else: ?>
+                    <?php else: ?>
                     <p class="text-gray-500 py-4">No treatments found.</p>
                 <?php endif; ?>
             </div>
@@ -254,8 +213,9 @@ include "../frontend/vetheader.php";
         function createMedicineRow() {
             const rowId = `med-row-${medicineCounter++}`;
             let optionsHtml = '<option value="" data-price="0.00">Select Medicine</option>';
+            // UPDATED JS TO USE SNAKE_CASE
             medicines.forEach(med => {
-                optionsHtml += `<option value="${med.medicineID}" data-price="${parseFloat(med.unitPrice).toFixed(2)}">${med.medicineName} (RM ${parseFloat(med.unitPrice).toFixed(2)} / unit)</option>`;
+                optionsHtml += `<option value="${med.medicine_id}" data-price="${parseFloat(med.unit_price).toFixed(2)}">${med.medicine_name} (RM ${parseFloat(med.unit_price).toFixed(2)} / unit)</option>`;
             });
 
             const row = document.createElement('div');
