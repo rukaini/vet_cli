@@ -144,7 +144,7 @@ include "../frontend/vetheader.php";
                         <span>Add Medicine</span>
                     </button>
                     <div class="mt-6 p-4 rounded-md lg:col-span-4" style="background-color: var(--secondary-color); border: 1px solid var(--primary-color);">
-                        <p class="font-bold" style="color: var(--primary-color);">Total Fee (Base + Medicine): RM <span id="total-fee-display">0.00</span></p>
+                        <p class="font-bold" style="color: var(--primary-color);">Total Fee (Consultation + Medicine): RM <span id="total-fee-display">0.00</span></p>
                     </div>
                 </div>
                 <div class="lg:col-span-4 mt-6">
@@ -167,46 +167,80 @@ include "../frontend/vetheader.php";
             </h2>
             
             <div id="treatmentListContent" class="space-y-4">
-                <div class="flex justify-end mb-4">
-                    <form method="GET" action="" class="flex items-center space-x-3">
-                        <button type="submit" style="background-color: var(--primary-color);" class="text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition duration-300 text-sm">Apply Sort</button>
+                
+                <div class="flex justify-end mb-2">
+                    <form method="GET" action="" class="flex items-center gap-3">
+                        
+                        <input type="hidden" name="appointment_id" value="<?php echo htmlspecialchars($appointmentID); ?>">
+                        
+                        <label for="sort" class="text-xs font-bold uppercase tracking-widest text-gray-400">
+                            Sort By
+                        </label>
+                        
+                        <div class="relative group">
+                            <select name="sort" onchange="this.form.submit()" 
+                                    class="appearance-none bg-transparent hover:bg-gray-50 border border-gray-200 text-gray-600 font-medium py-2 pl-4 pr-10 rounded-full text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all duration-300 cursor-pointer shadow-sm">
+                                <option value="date_desc" <?php echo (isset($sort_by) && $sort_by == 'date_desc') ? 'selected' : ''; ?>>Date: Newest</option>
+                                <option value="date_asc" <?php echo (isset($sort_by) && $sort_by == 'date_asc') ? 'selected' : ''; ?>>Date: Oldest</option>
+                                <option value="id_desc" <?php echo (isset($sort_by) && $sort_by == 'id_desc') ? 'selected' : ''; ?>>ID: Descending</option>
+                                <option value="id_asc" <?php echo (isset($sort_by) && $sort_by == 'id_asc') ? 'selected' : ''; ?>>ID: Ascending</option>
+                            </select>
+                            
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 group-hover:text-teal-600 transition-colors duration-300">
+                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                                </svg>
+                            </div>
+                        </div>
                     </form>
                 </div>
                 
                 <?php if ($has_records): ?>
-                    <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 border table">
-                    <thead class="bg-blue-50"><tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Diagnosis / Description</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Total Fee</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Vet</th>
-                    </tr></thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                    <?php foreach ($treatments as $row): 
-                        // UPDATED TO SNAKE_CASE KEYS FROM DB
-                        $status_class = match ($row['treatment_status']) {
-                            'Completed' => 'bg-green-100 text-green-700 ring-1 ring-green-600/20',
-                            'In Progress' => 'bg-blue-100 text-blue-700 ring-1 ring-blue-600/20',
-                            'Pending' => 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-600/20',
-                            default => 'bg-gray-100 text-gray-700 ring-1 ring-gray-600/20',
-                        };
-                        $diag = !empty($row['diagnosis']) ? $row['diagnosis'] : $row['treatment_description'];
-                    ?>
-                        <tr>
-                            <td class="px-6 py-4 text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['treatment_id']); ?></td>
-                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['treatment_date']); ?></td>
-                            <td class="px-6 py-4"><span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full <?php echo $status_class; ?>"><?php echo htmlspecialchars($row['treatment_status']); ?></span></td>
-                            <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-xs"><?php echo htmlspecialchars($diag); ?></td>
-                            <td class="px-6 py-4 text-sm font-bold text-gray-900">RM <?php echo number_format($row['treatment_fee'], 2); ?></td>
-                            <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($row['vet_id']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody></table></div>
-                    
-                    <?php else: ?>
-                    <p class="text-gray-500 py-4">No treatments found.</p>
+                    <div class="overflow-hidden rounded-lg border border-gray-100 shadow-sm">
+                        <table class="min-w-full divide-y divide-gray-100">
+                            <thead class="bg-gray-50/50">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Diagnosis</th>
+                                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Fee</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vet</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-50">
+                            <?php foreach ($treatments as $row): 
+                                $status_class = match ($row['treatment_status']) {
+                                    'Completed' => 'bg-green-50 text-green-700 border border-green-100',
+                                    'In Progress' => 'bg-blue-50 text-blue-700 border border-blue-100',
+                                    'Pending' => 'bg-yellow-50 text-yellow-700 border border-yellow-100',
+                                    'Deceased' => 'bg-red-50 text-red-700 border border-red-100',
+                                    default => 'bg-gray-50 text-gray-600 border border-gray-100',
+                                };
+                                $diag = !empty($row['diagnosis']) ? $row['diagnosis'] : $row['treatment_description'];
+                            ?>
+                                <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                    <td class="px-6 py-4 text-sm font-semibold text-teal-700"><?php echo htmlspecialchars($row['treatment_id']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-600 font-mono"><?php echo htmlspecialchars($row['treatment_date']); ?></td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-1 inline-flex text-xs font-medium rounded-full <?php echo $status_class; ?>">
+                                            <?php echo htmlspecialchars($row['treatment_status']); ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-700 truncate max-w-xs" title="<?php echo htmlspecialchars($row['treatment_description']); ?>">
+                                        <?php echo htmlspecialchars($diag); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm font-bold text-gray-800 text-right">RM <?php echo number_format($row['treatment_fee'], 2); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($row['vet_id']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                        <p class="text-gray-400 text-sm">No treatment history found.</p>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
