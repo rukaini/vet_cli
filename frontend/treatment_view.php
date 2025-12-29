@@ -1,11 +1,7 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['vetID'], $_GET['appointment_id'])) {
-    die("Unauthorized");
-}
-
-$vetID = $_SESSION['vetID'];              // TRUST THIS
+$vetID = $_SESSION['vetID'];             
 $appointmentID = $_GET['appointment_id'];
 
 require_once "../backend/treatment_controller.php";
