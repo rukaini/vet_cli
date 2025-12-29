@@ -49,13 +49,67 @@ include "../frontend/vetheader.php";
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <div class="custom-card p-4 rounded-lg mb-6 bg-white">
-            <h3 class="text-lg font-bold mb-3" style="color: var(--primary-color);">Patient Information</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div><span class="font-bold">Appt ID:</span> <?php echo $appointmentID; ?></div>
-                <div><span class="font-bold">Pet ID:</span> <?php echo $petInfo['pet_id']; ?></div>
-                <div><span class="font-bold">Owner ID:</span> <?php echo $petInfo['owner_id']; ?></div>
-                <div><span class="font-bold">Service:</span> <?php echo $petInfo['service_id'] ?? '-'; ?></div>
+       <div class="custom-card p-6 rounded-xl mb-8 bg-white border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
+            
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400">
+                    Patient Overview
+                </h3>
+                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                    <i class="fas fa-info-circle mr-1"></i> Info
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                
+                <div class="flex items-center space-x-4 group">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-100 transition-colors">
+                        <i class="fa-regular fa-calendar-check text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Appt ID</p>
+                        <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($appointmentID); ?>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4 group">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-orange-100 transition-colors">
+                        <i class="fa-solid fa-paw text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Pet ID</p>
+                        <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($petInfo['pet_id']); ?>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4 group">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors">
+                        <i class="fa-regular fa-user text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Owner ID</p>
+                        <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($petInfo['owner_id']); ?>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4 group">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 group-hover:bg-purple-100 transition-colors">
+                        <i class="fa-solid fa-stethoscope text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Service</p>
+                        <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($petInfo['service_id'] ?? 'N/A'); ?>
+                        </p>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -166,7 +220,7 @@ include "../frontend/vetheader.php";
                 </button>
             </h2>
             
-            <div id="treatmentListContent" class="space-y-4">
+           <div id="treatmentListContent" class="space-y-4">
                 
                 <div class="flex justify-end mb-2">
                     <form method="GET" action="" class="flex items-center gap-3">
