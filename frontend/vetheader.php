@@ -60,7 +60,7 @@
                                 class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
 
-                            <li><a href="http://10.48.74.38/vet_clinic/frontend/php">List Treatment</a></li>
+                            <li><a href="treatment_list.php">List Treatment</a></li>
                         </ul>
                     </li>
 

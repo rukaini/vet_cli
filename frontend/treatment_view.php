@@ -4,6 +4,7 @@ session_start();
 $vetID = $_SESSION['vetID'];             
 $appointmentID = $_GET['appointment_id'];
 
+
 require_once "../backend/treatment_controller.php";
 
 // Fetch Pet Info from MariaDB (snake_case)
@@ -350,4 +351,4 @@ include "../frontend/vetheader.php";
     });
 </script>
 
-<?php include 'frontend/footer.php'; ?>
+<?php include 'footer.php'; ?>
