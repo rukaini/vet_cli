@@ -20,18 +20,29 @@ $action = $_GET['action'] ?? $_POST['action'] ?? null;
 try {
     switch ($action) {
 
-        /* ================= READ ================= */
+        /* ================= READ (WITH SORTING) ================= */
         case 'read':
-            // SQL UPDATED: snake_case columns
-            $stmt = $conn->query("
-                SELECT medicine_id, medicine_name,
-                       stock_quantity, expiry_date,
-                       dosage_instructions, unit_price
-                FROM MEDICINE
-                ORDER BY medicine_name
-            ");
+            // 1. Handle Sorting
+            $sort = $_GET['sort'] ?? 'name_asc';
+            
+            $orderBy = match ($sort) {
+                'date_desc'  => 'created_at DESC',
+                'date_asc'   => 'created_at ASC',
+                'name_asc'   => 'medicine_name ASC',
+                'name_desc'  => 'medicine_name DESC',
+                'stock_asc'  => 'stock_quantity ASC',
+                'stock_desc' => 'stock_quantity DESC',
+                default      => 'medicine_name ASC'
+            };
 
-            // PDO: fetchAll instead of fetch_assoc loop
+            // 2. Select New Columns (admin_id, created_at)
+            $sql = "SELECT medicine_id, medicine_name, stock_quantity, 
+                           expiry_date, dosage_instructions, unit_price,
+                           admin_id, created_at
+                    FROM MEDICINE
+                    ORDER BY $orderBy";
+
+            $stmt = $conn->query($sql);
             $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             echo json_encode(['status' => 'success', 'data' => $data]);
@@ -46,7 +57,7 @@ try {
             $price  = $_POST['unitPrice'];
             $admin  = $_POST['admin_id'] ?? null; 
 
-            // PDO: query() returns a statement, fetchColumn() gets the single value
+            // Generate ID (M001, M002...)
             $stmt = $conn->query("
                 SELECT MAX(CAST(SUBSTRING(medicine_id, 2) AS UNSIGNED)) 
                 FROM MEDICINE
@@ -55,14 +66,14 @@ try {
             $num   = ($maxID ?? 0) + 1;
             $newID = "M" . str_pad($num, 3, "0", STR_PAD_LEFT);
 
-            // SQL: snake_case columns
+            // Insert including admin_id
+            // Note: created_at is usually automatic in DB (DEFAULT CURRENT_TIMESTAMP)
+            // If you need to force it, add NOW() to values.
             $sql = "INSERT INTO MEDICINE 
                     (medicine_id, medicine_name, stock_quantity, expiry_date, dosage_instructions, unit_price, admin_id) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)";
             
             $stmt = $conn->prepare($sql);
-            
-            // PDO: Pass values array to execute()
             $stmt->execute([$newID, $name, $stock, $expiry, $dosage, $price, $admin]);
 
             echo json_encode(['status' => 'success']);
@@ -70,14 +81,13 @@ try {
 
         /* ================= UPDATE ================= */
         case 'update':
-            // SQL: snake_case columns
+            // Usually we don't update created_at or admin_id on edit, but we can if needed.
+            // Keeping it simple: update details only.
             $sql = "UPDATE MEDICINE 
                     SET medicine_name=?, stock_quantity=?, expiry_date=?, dosage_instructions=?, unit_price=? 
                     WHERE medicine_id=?";
             
             $stmt = $conn->prepare($sql);
-            
-            // PDO: Pass values array to execute()
             $stmt->execute([
                 $_POST['name'], 
                 $_POST['stock'], 
@@ -92,7 +102,6 @@ try {
 
         /* ================= DELETE ================= */
         case 'delete':
-            // SQL: snake_case columns
             $stmt = $conn->prepare("DELETE FROM MEDICINE WHERE medicine_id=?");
             $stmt->execute([$_POST['id']]);
 
