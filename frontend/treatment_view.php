@@ -77,10 +77,7 @@ include "../frontend/vetheader.php";
                 <input type="hidden" name="petID" value="<?php echo $petInfo['pet_id']; ?>">
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    <div class="lg:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Treatment ID </label>
-                        <input type="text" name="treatmentID" value="<?php echo $nextTreatmentID; ?>" readonly>
-                    </div>
+                    <input type="hidden" name="treatmentID" value="<?php echo $nextTreatmentID; ?>">
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Appointment ID</label>
                         <input type="text" name="appointmentID" value="<?php echo $appointmentID; ?>" readonly>
@@ -107,9 +104,29 @@ include "../frontend/vetheader.php";
                         <input type="number" name="treatmentFee" id="baseFee" step="0.01" placeholder="50.00" value="0.00" required>
                     </div>
                     <div class="lg:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
-                        <input type="text" name="diagnosis" placeholder="Fever, broken leg, etc.">
-                    </div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
+    
+    <select id="diagnosisSelect" class="block w-full p-2 border border-gray-300 rounded-md mb-2 focus:ring-teal-500 focus:border-teal-500">
+        <option value="">-- Select Common Diagnosis --</option>
+        <option value="General Checkup / Healthy">General Checkup / Healthy</option>
+        <option value="Vaccination">Vaccination</option>
+        <option value="Gastroenteritis (Vomiting/Diarrhea)">Gastroenteritis (Vomiting/Diarrhea)</option>
+        <option value="Dermatitis (Skin Infection)">Dermatitis (Skin Infection)</option>
+        <option value="Otitis (Ear Infection)">Otitis (Ear Infection)</option>
+        <option value="Conjunctivitis (Eye Infection)">Conjunctivitis (Eye Infection)</option>
+        <option value="Physical Trauma / Wound">Physical Trauma / Wound</option>
+        <option value="Bone Fracture">Bone Fracture</option>
+        <option value="Parasitic Infection (Fleas/Ticks)">Parasitic Infection (Fleas/Ticks)</option>
+        <option value="Dental Disease">Dental Disease</option>
+        <option value="Respiratory Infection (Flu)">Respiratory Infection (Flu)</option>
+        <option value="Urinary Tract Infection (UTI)">Urinary Tract Infection (UTI)</option>
+        <option value="Other">Other (Type Manually)</option>
+    </select>
+
+    <input type="text" name="diagnosis" id="diagnosisInput" 
+           placeholder="Please type the specific diagnosis..." 
+           class="hidden w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
+</div>
                     <div class="lg:col-span-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Description / Procedure</label>
                         <textarea name="treatmentDescription" rows="3" required placeholder="Detailed notes..."></textarea>
@@ -310,6 +327,26 @@ include "../frontend/vetheader.php";
                 }
             });
         }
+        // --- Diagnosis Dropdown Logic ---
+    const diagSelect = document.getElementById('diagnosisSelect');
+    const diagInput = document.getElementById('diagnosisInput');
+
+    if (diagSelect && diagInput) {
+        diagSelect.addEventListener('change', function() {
+            if (this.value === 'Other') {
+                // If 'Other', show the text box and clear it for typing
+                diagInput.classList.remove('hidden');
+                diagInput.style.display = 'block'; // Ensure it's visible if Tailwind 'hidden' conflicts
+                diagInput.value = '';
+                diagInput.focus();
+            } else {
+                // Otherwise, hide text box and copy the selection value into it
+                diagInput.classList.add('hidden');
+                diagInput.style.display = 'none';
+                diagInput.value = this.value;
+            }
+        });
+    }
     });
 </script>
 

@@ -53,24 +53,19 @@
                     <li class="dropdown"><a href="#"><span>Patient Records</span> <i
                                 class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
-                            <li><a href="../frontend/">Assigned Patient</a></li>
-                            <li><a href="../frontend/vet_appointment_list.php">List Appointment</a></li>
+                            <li><a href="http://10.48.74.61/Vet_clinic/frontend/vet_app_list.php">List Appointment</a></li>
                         </ul>
                     </li>
                     <li class="dropdown"><a href="#"><span>Treatment</span> <i
                                 class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
-                            <li><a href="http://10.48.74.38/vet_clinic/frontend/treatment_view.php">Add Treatment</a></li>
 
-                            <li><a href="http://10.48.74.38/vet_clinic/frontend/treatment2.php">List Treatment</a></li>
+                            <li><a href="http://10.48.74.38/vet_clinic/frontend/php">List Treatment</a></li>
                         </ul>
                     </li>
-                    <li class="dropdown"><a href="#"><span>MyProfile</span> <i
-                                class="bi bi-chevron-down toggle-dropdown"></i></a>
-                        <ul>
-                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vetprofile.php">Update Profile</a></li>
-                        </ul>
-                    </li>
+
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/vetprofile.php">MyProfile</a></li>
+
                 </ul>
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
