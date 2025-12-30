@@ -63,6 +63,11 @@
                             <li><a href="treatment_list.php">List Treatment</a></li>
                         </ul>
                     </li>
+                    <li class="dropdown"><a href="#"><span>Medicine</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+                        <ul>
+                            <li><a href="medicine_list.php">Medicine Inventory</a></li>
+                        </ul>
+                    </li>
 
                     <li><a href="http://10.48.74.199:81/vetcli/frontend/vetprofile.php">MyProfile</a></li>
 
