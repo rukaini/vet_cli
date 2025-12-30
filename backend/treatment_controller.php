@@ -14,13 +14,13 @@ global $connMySQL; // Use Local MySQL for Treatments
 
 // Authentication
 if (isset($_GET['vet_id'])) $_SESSION['vetID'] = trim($_GET['vet_id']);
-if (isset($_GET['vetname'])) $_SESSION['vetName'] = urldecode(trim($_GET['vetname']));
+if (isset($_GET['vet_name'])) $_SESSION['vetname'] = urldecode(trim($_GET['vet_name']));
 
 if (!isset($_SESSION['vetID'])) die("Unauthorized access.");
 
 $vetID = $_SESSION['vetID'];
 $appointmentID = isset($_GET['appointment_id']) ? trim($_GET['appointment_id']) : ($_SESSION['appointmentID'] ?? '');
-$vetName = $_SESSION['vetName'] ?? $vetID;
+$vetName = $_SESSION['vetname'] ?? $vetID;
 
 if (!empty($appointmentID)) $_SESSION['appointmentID'] = $appointmentID;
 

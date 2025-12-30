@@ -3,7 +3,7 @@ session_start();
 
 $vetID = $_SESSION['vetID'];             
 $appointmentID = $_GET['appointment_id'];
-
+$vetName = $_SESSION['vetName'] ?? null;
 
 require_once "../backend/treatment_controller.php";
 
