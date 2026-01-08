@@ -116,6 +116,9 @@ if (!empty($treatments) && $dbLocal) {
         background: #fff;
         border: 1px solid #e2e8f0;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        /* Flex column to handle header/body/footer scrolling */
+        display: flex;
+        flex-direction: column;
     }
 </style>
 </head>
@@ -168,8 +171,7 @@ if (!empty($treatments) && $dbLocal) {
                                 <i class="far fa-calendar-alt text-teal-400 mr-1"></i>
                                 <?php echo htmlspecialchars($row['treatment_date']); ?>
                             </span>
-                            <span class="text-xs text-gray-400 mt-1"><?php echo $tID; ?></span>
-                        </div>
+                            </div>
                     </td>
 
                     <td>
@@ -231,19 +233,19 @@ if (!empty($treatments) && $dbLocal) {
 </div>
 
 <div id="instructionModal" class="fixed inset-0 hidden items-center justify-center z-50 p-4">
-    <div class="prescription-paper w-full max-w-lg rounded-xl overflow-hidden relative animate-[fadeIn_0.3s_ease-out]">
+    <div class="prescription-paper w-full max-w-sm max-h-[80vh] rounded-xl overflow-hidden relative animate-[fadeIn_0.3s_ease-out]">
         
-        <div class="bg-teal-600 px-6 py-4 flex justify-between items-start">
+        <div class="bg-teal-600 px-6 py-4 flex justify-between items-start flex-shrink-0">
             <div>
                 <h2 class="text-white text-lg font-bold tracking-wide">MEDICINE INSTRUCTION</h2>
-                <p class="text-teal-100 text-xs mt-1">University Veterinary Hospital (UVH)</p>
+                <p class="text-teal-100 text-xs mt-1">Vet Clinic Kerol</p>
             </div>
-            <button onclick="closeModal()" class="text-teal-100 hover:text-white transition">
+            <button onclick="closeModal()" type="button" class="text-teal-100 hover:text-white transition focus:outline-none p-1">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
-        <div class="p-6 bg-white">
+        <div class="p-6 bg-white overflow-y-auto flex-1">
             
             <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
                 <div>
@@ -271,7 +273,7 @@ if (!empty($treatments) && $dbLocal) {
 
         </div>
 
-        <div class="bg-gray-50 px-6 py-3 text-center">
+        <div class="bg-gray-50 px-6 py-3 text-center flex-shrink-0 border-t border-gray-100">
             <button onclick="closeModal()" class="text-sm text-gray-500 hover:text-gray-800 font-medium">
                 Close Label
             </button>
@@ -304,8 +306,7 @@ if (!empty($treatments) && $dbLocal) {
                         </div>
                         <div>
                             <h3 class="text-gray-800 font-bold text-base leading-tight">${item.medicine}</h3>
-                            <span class="text-xs text-gray-400">ID: ${item.id}</span>
-                        </div>
+                            </div>
                     </div>
 
                     <div class="bg-white rounded border border-blue-100 p-3">
