@@ -22,29 +22,23 @@ $displayName = $_SESSION['ownerName'] ?? 'Owner';
 ========================= */
 require_once "../backend/connection.php";
 // Ensure we have the correct DB connection variable
-// Assuming $conn or $connMySQL or $dbLocal is available from connection.php
 $dbLocal = $connMySQL ?? $conn ?? null; 
 
-require_once "../backend/treatment_controller.php"; // This likely populates $treatments
+require_once "../backend/treatment_controller.php"; 
 include "../frontend/ownerheader.php";
 
 /* =========================
    FETCH MEDICINE INSTRUCTIONS
 ========================= */
-// We initialize an empty array to hold instructions mapped by treatment ID
 $instructionsMap = [];
 
 if (!empty($treatments) && $dbLocal) {
     try {
-        // 1. Get IDs from the current page's treatments
         $t_ids = array_column($treatments, 'treatment_id');
         
         if (!empty($t_ids)) {
-            // Create placeholders for the SQL IN clause (?,?,?)
             $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
 
-            // 2. Fetch Instructions linked to these treatments
-            // We join MEDICINE_DETAILS with MEDICINE to get the name
             $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name, m.medicine_id 
                         FROM MEDICINE_DETAILS md
                         LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
@@ -56,7 +50,6 @@ if (!empty($treatments) && $dbLocal) {
             $stmtInst->execute($t_ids);
             $allInstructions = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
             
-            // 3. Group them by treatment_id for easy access in the loop
             foreach ($allInstructions as $inst) {
                 $instructionsMap[$inst['treatment_id']][] = [
                     'medicine' => $inst['medicine_name'] ?? 'Medicine',
@@ -66,7 +59,6 @@ if (!empty($treatments) && $dbLocal) {
             }
         }
     } catch (Exception $e) {
-        // Silent fail or log error
         error_log("Error fetching instructions: " . $e->getMessage());
     }
 }
@@ -108,15 +100,10 @@ if (!empty($treatments) && $dbLocal) {
     .btn-label:hover { background-color: #00606f; transform: translateY(-1px); }
 
     /* Modal Styles */
-    #instructionModal {
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
-    }
     .prescription-paper {
         background: #fff;
         border: 1px solid #e2e8f0;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        /* Flex column to handle header/body/footer scrolling */
         display: flex;
         flex-direction: column;
     }
@@ -159,9 +146,8 @@ if (!empty($treatments) && $dbLocal) {
                     $tID = $row['treatment_id'];
                     $hasInstructions = isset($instructionsMap[$tID]);
                     
-                    // Encode instructions to JSON for the JS function
                     $instJson = $hasInstructions ? json_encode($instructionsMap[$tID]) : '[]';
-                    $patientName = htmlspecialchars($displayName . "'s Pet"); // Ideally fetch pet name from DB
+                    $patientName = htmlspecialchars($displayName . "'s Pet"); 
                 ?>
                 <tr>
 
@@ -171,7 +157,7 @@ if (!empty($treatments) && $dbLocal) {
                                 <i class="far fa-calendar-alt text-teal-400 mr-1"></i>
                                 <?php echo htmlspecialchars($row['treatment_date']); ?>
                             </span>
-                            </div>
+                        </div>
                     </td>
 
                     <td>
@@ -232,16 +218,18 @@ if (!empty($treatments) && $dbLocal) {
     </div>
 </div>
 
-<div id="instructionModal" class="fixed inset-0 hidden items-center justify-center z-50 p-4">
-    <div class="prescription-paper w-full max-w-sm max-h-[80vh] rounded-xl overflow-hidden relative animate-[fadeIn_0.3s_ease-out]">
+<div id="instructionModal" class="fixed inset-0 hidden items-center justify-center z-50 p-4 bg-gray-900/40 backdrop-blur-sm transition-opacity duration-300">
+    
+    <div class="prescription-paper w-full max-w-sm max-h-[85vh] rounded-2xl overflow-hidden relative animate-[fadeIn_0.3s_ease-out] shadow-2xl flex flex-col bg-white">
         
-        <div class="bg-teal-600 px-6 py-4 flex justify-between items-start flex-shrink-0">
+        <div class="bg-teal-600 px-6 py-4 flex justify-between items-center flex-shrink-0">
             <div>
-                <h2 class="text-white text-lg font-bold tracking-wide">MEDICINE INSTRUCTION</h2>
-                <p class="text-teal-100 text-xs mt-1">Vet Clinic Kerol</p>
+                <h2 class="text-white text-sm font-bold tracking-widest uppercase">Prescription</h2>
+                <p class="text-teal-100/80 text-[10px] font-medium mt-0.5">Vet Clinic Kerol Merol</p>
             </div>
-            <button onclick="closeModal()" type="button" class="text-teal-100 hover:text-white transition focus:outline-none p-1">
-                <i class="fas fa-times text-xl"></i>
+            
+            <button onclick="closeModal()" type="button" class="group w-8 h-8 flex items-center justify-center rounded-full bg-teal-700/30 hover:bg-white/20 text-white transition-all duration-300 focus:outline-none">
+                <i class="fas fa-times text-xs opacity-70 group-hover:opacity-100 scale-100 group-hover:scale-110 transition-transform"></i>
             </button>
         </div>
 
@@ -249,11 +237,11 @@ if (!empty($treatments) && $dbLocal) {
             
             <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
                 <div>
-                    <span class="text-xs text-gray-400 uppercase tracking-wider">Date</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Date</span>
                     <div id="modalDate" class="text-sm font-semibold text-gray-700">--</div>
                 </div>
                 <div class="text-right">
-                    <span class="text-xs text-gray-400 uppercase tracking-wider">Patient</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Patient</span>
                     <div id="modalPatient" class="text-sm font-semibold text-gray-700">--</div>
                 </div>
             </div>
@@ -261,57 +249,52 @@ if (!empty($treatments) && $dbLocal) {
             <div id="modalContent" class="space-y-6">
                 </div>
 
-            <div class="mt-8 pt-4 border-t border-dashed border-gray-300">
+            <div class="mt-8 pt-4 border-t border-dashed border-gray-200">
                 <div class="flex items-start gap-3">
-                    <i class="fas fa-exclamation-circle text-orange-500 mt-1"></i>
-                    <p class="text-xs text-gray-500 leading-relaxed">
-                        <strong>Important:</strong> Please complete the full course of medication as prescribed. 
-                        If you notice any side effects, stop immediately and contact the clinic.
+                    <i class="fas fa-exclamation-circle text-orange-400 mt-0.5 text-sm"></i>
+                    <p class="text-[11px] text-gray-400 leading-relaxed font-medium">
+                        Please complete the full course of medication. Contact us if side effects occur.
                     </p>
                 </div>
             </div>
 
         </div>
 
-        <div class="bg-gray-50 px-6 py-3 text-center flex-shrink-0 border-t border-gray-100">
-            <button onclick="closeModal()" class="text-sm text-gray-500 hover:text-gray-800 font-medium">
-                Close Label
+        <div class="px-6 py-5 text-center flex-shrink-0 bg-white">
+            <button onclick="closeModal()" class="px-8 py-2.5 rounded-full border border-gray-200 text-xs font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:text-gray-600 hover:border-gray-300 transition-all duration-300 transform active:scale-95 outline-none">
+                Close View
             </button>
         </div>
     </div>
 </div>
-
 <?php include "footer.php"; ?>
 
 <script>
-    // Open Modal Function
     function openInstructionModal(instructions, dateStr, patientName) {
         const modal = document.getElementById('instructionModal');
         const content = document.getElementById('modalContent');
         const dateEl = document.getElementById('modalDate');
         const patientEl = document.getElementById('modalPatient');
 
-        // Set Header Details
         dateEl.textContent = dateStr;
         patientEl.textContent = patientName;
-        content.innerHTML = ''; // Clear previous
+        content.innerHTML = ''; 
 
-        // Loop through medicines and create "cards" for each
-        instructions.forEach((item, index) => {
+        instructions.forEach((item) => {
             const html = `
-                <div class="bg-blue-50/50 rounded-lg p-4 border border-blue-100 relative">
+                <div class="bg-blue-50/30 rounded-xl p-4 border border-blue-50 relative">
                     <div class="flex items-center gap-3 mb-3">
-                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                            <i class="fas fa-pills"></i>
+                        <div class="w-8 h-8 rounded-full bg-blue-100/50 flex items-center justify-center text-blue-500">
+                            <i class="fas fa-pills text-sm"></i>
                         </div>
                         <div>
-                            <h3 class="text-gray-800 font-bold text-base leading-tight">${item.medicine}</h3>
-                            </div>
+                            <h3 class="text-gray-800 font-bold text-sm leading-tight">${item.medicine}</h3>
+                        </div>
                     </div>
 
-                    <div class="bg-white rounded border border-blue-100 p-3">
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-1">Giving Instructions:</h4>
-                        <p class="text-sm text-gray-700 font-medium whitespace-pre-wrap leading-relaxed">
+                    <div class="bg-white rounded-lg border border-blue-50 p-3 shadow-sm">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-1 tracking-wide">Instructions:</h4>
+                        <p class="text-xs text-gray-600 font-medium whitespace-pre-wrap leading-relaxed">
                             ${item.instruction}
                         </p>
                     </div>
@@ -320,19 +303,16 @@ if (!empty($treatments) && $dbLocal) {
             content.insertAdjacentHTML('beforeend', html);
         });
 
-        // Show Modal (Flex)
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
 
-    // Close Modal Function
     function closeModal() {
         const modal = document.getElementById('instructionModal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
 
-    // Close if clicking outside
     window.onclick = function(event) {
         const modal = document.getElementById('instructionModal');
         if (event.target == modal) {
