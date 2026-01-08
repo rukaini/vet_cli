@@ -42,45 +42,71 @@ if (empty($displayName)) {
 $sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'date_desc';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-// --- NEW FUNCTION: FETCH INSTRUCTIONS WITH MEDICINE NAMES ---
-// Group instructions by Treatment ID for the current page's treatments
-$instructionsMap = [];
-if (!empty($treatments)) {
-    // Determine which connection variable to use (fallback logic)
-    $db = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null);
+// --- PREPARE DATA FETCHING ---
+// Determine DB connections
+$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); // For Treatments/Instructions
+$dbMaria = isset($conn) ? $conn : null; // For Appointments (Time)
 
-    if ($db) {
-        try {
-            // Get IDs from the current page's treatments
-            $t_ids = array_column($treatments, 'treatment_id');
+$instructionsMap = [];
+$treatmentTimes = [];
+
+if (!empty($treatments) && $dbLocal) {
+    try {
+        // Get IDs from the current page's treatments
+        $t_ids = array_column($treatments, 'treatment_id');
+        
+        if (!empty($t_ids)) {
+            $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
+
+            // --- 1. FETCH INSTRUCTIONS ---
+            $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name 
+                        FROM MEDICINE_DETAILS md
+                        LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
+                        WHERE md.treatment_id IN ($placeholders) 
+                        AND md.instruction IS NOT NULL 
+                        AND md.instruction != ''";
             
-            if (!empty($t_ids)) {
-                // Prepare IN clause (?,?,?)
-                $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
+            $stmtInst = $dbLocal->prepare($sqlInst);
+            $stmtInst->execute($t_ids);
+            $allInstructions = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($allInstructions as $inst) {
+                $instructionsMap[$inst['treatment_id']][] = [
+                    'medicine' => $inst['medicine_name'] ?? 'Medicine',
+                    'instruction' => $inst['instruction']
+                ];
+            }
+
+            // --- 2. FETCH APPOINTMENT TIMES ---
+            // First: Get appointment_id for these treatments (Local DB)
+            $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
+            $stmtAppt = $dbLocal->prepare($sqlAppt);
+            $stmtAppt->execute($t_ids);
+            $apptMap = $stmtAppt->fetchAll(PDO::FETCH_KEY_PAIR); // [treatment_id => appointment_id]
+
+            // Second: Get Time from Appointment Table (MariaDB)
+            if (!empty($apptMap) && $dbMaria) {
+                $a_ids = array_values($apptMap);
+                $a_ids = array_filter($a_ids); // Remove nulls
                 
-                // UPDATED QUERY: Left Join to fetch Medicine Name
-                $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name 
-                           FROM MEDICINE_DETAILS md
-                           LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
-                           WHERE md.treatment_id IN ($placeholders) 
-                           AND md.instruction IS NOT NULL 
-                           AND md.instruction != ''";
-                
-                $stmtInst = $db->prepare($sqlInst);
-                $stmtInst->execute($t_ids);
-                $allInstructions = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Group them: ['T001' => [['medicine' => 'Panadol', 'instruction' => 'Take 1'], ...]]
-                foreach ($allInstructions as $inst) {
-                    $instructionsMap[$inst['treatment_id']][] = [
-                        'medicine' => $inst['medicine_name'] ?? 'Medicine',
-                        'instruction' => $inst['instruction']
-                    ];
+                if (!empty($a_ids)) {
+                    $placeholdersA = str_repeat('?,', count($a_ids) - 1) . '?';
+                    $sqlTime = "SELECT appointment_id, time FROM appointment WHERE appointment_id IN ($placeholdersA)";
+                    $stmtTime = $dbMaria->prepare($sqlTime);
+                    $stmtTime->execute($a_ids);
+                    $timeMap = $stmtTime->fetchAll(PDO::FETCH_KEY_PAIR); // [appointment_id => time]
+
+                    // Map back to treatment_id
+                    foreach ($apptMap as $tid => $aid) {
+                        if (isset($timeMap[$aid])) {
+                            $treatmentTimes[$tid] = $timeMap[$aid];
+                        }
+                    }
                 }
             }
-        } catch (Exception $e) {
-            // Silently fail if table doesn't exist or query fails, to not break the page
         }
+    } catch (Exception $e) {
+        // Silently fail if tables/connections missing
     }
 }
 
@@ -176,7 +202,7 @@ include "../frontend/vetheader.php";
             font-size: 0.9rem;
             color: var(--text-main);
             border-bottom: 1px solid #f1f5f9;
-            vertical-align: top; /* Changed to top alignment for better multi-line look */
+            vertical-align: top;
         }
 
         .aesthetic-table tbody tr:last-child td {
@@ -257,8 +283,7 @@ include "../frontend/vetheader.php";
                 <thead>
                     <tr>
                         <th class="w-24">ID</th>
-                        <th class="w-32">Date</th>
-                        <th class="w-5/12">Diagnosis & Details</th> 
+                        <th class="w-36">Date & Time</th> <th class="w-5/12">Diagnosis & Details</th> 
                         <th>Status</th>
                         <th class="text-right">Total Fee</th>
                         <th>Vet ID</th>
@@ -278,6 +303,7 @@ include "../frontend/vetheader.php";
                             
                             $tID = $row['treatment_id'];
                             $hasInstructions = isset($instructionsMap[$tID]) && count($instructionsMap[$tID]) > 0;
+                            $timeStr = isset($treatmentTimes[$tID]) ? date('h:i A', strtotime($treatmentTimes[$tID])) : '';
                         ?>
                         <tr>
                             <td>
@@ -287,9 +313,17 @@ include "../frontend/vetheader.php";
                             </td>
 
                             <td>
-                                <div class="flex items-center text-sm text-gray-600">
-                                    <i class="far fa-calendar-alt mr-2 text-teal-400"></i>
-                                    <?php echo date('d/m/Y', strtotime($row['treatment_date'])); ?>
+                                <div class="flex flex-col">
+                                    <div class="flex items-center text-sm text-gray-600 font-medium">
+                                        <i class="far fa-calendar-alt mr-2 text-teal-400"></i>
+                                        <?php echo date('d/m/Y', strtotime($row['treatment_date'])); ?>
+                                    </div>
+                                    <?php if ($timeStr): ?>
+                                    <div class="flex items-center text-xs text-gray-400 mt-1 ml-6">
+                                        <i class="far fa-clock mr-1.5"></i>
+                                        <?php echo $timeStr; ?>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </td>
 

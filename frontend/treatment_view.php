@@ -8,12 +8,16 @@ $vetName = $_SESSION['vetName'] ?? null;
 
 require_once "../backend/treatment_controller.php";
 
-if (empty($vetName)) {
+// If vetName is empty OR it is just the ID (fallback from controller), fetch the real name
+if (empty($vetName) || $vetName == $vetID) {
     if (function_exists('getVetByIdPG')) {
-        $vetData = getVetByIdPG($vetID); // This function is in select_query_pg.php
+        $vetData = getVetByIdPG($vetID); // Calls your PostgreSQL function
         if ($vetData && isset($vetData['vet_name'])) {
             $vetName = $vetData['vet_name'];
-            $_SESSION['vetName'] = $vetName; // Save it so we don't ask again
+            
+            // Update both session keys to be safe (case-sensitivity fix)
+            $_SESSION['vetName'] = $vetName; 
+            $_SESSION['vetname'] = $vetName; 
         }
     }
 }
@@ -97,12 +101,13 @@ include "../frontend/vetheader.php";
     <div class="custom-header-bg">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl md:text-4xl font-bold" style="color: var(--primary-color);">Vet Clinic Treatment Portal</h1>
-            <p class="mt-1 text-lg" style="color: #6b7280;">
-                Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
-                <?php if (!empty($vetName)): ?>
-                    (<?php echo htmlspecialchars($vetName); ?>)
-                <?php endif; ?>
-            </p>
+                <p class="mt-1 text-lg" style="color: #6b7280;">
+                    Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
+                    
+                    <?php if (!empty($vetName) && $vetName !== $vetID): ?>
+                        (<?php echo htmlspecialchars($vetName); ?>)
+                    <?php endif; ?>
+                </p>
         </div>
     </div>
 
