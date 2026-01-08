@@ -110,8 +110,8 @@ function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
                 $newApptStatus = 'Confirmed';
                 break;
             case 'In Progress':
-                // An appointment is still technically 'Confirmed' while actively in progress
-                $newApptStatus = 'Confirmed'; 
+                // UPDATED: Now directly sets status to 'In Progress' instead of 'Confirmed'
+                $newApptStatus = 'In Progress'; 
                 break;
             case 'Completed':
                 $newApptStatus = 'Completed';

@@ -194,22 +194,29 @@ include "../frontend/vetheader.php";
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     <input type="hidden" name="treatmentID" value="<?php echo $nextTreatmentID; ?>">
             
-                    <div class="lg:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select name="treatmentStatus" required>
-                            <option value="Pending">Pending</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Deceased" class="text-red-600 font-bold">Deceased (Pet Died)</option>
-                        </select>
-                    </div>
+                        <div class="lg:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="treatmentStatus" required>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress" selected>In Progress</option> <option value="Completed">Completed</option>
+                                <option value="Deceased" class="text-red-600 font-bold">Deceased (Pet Died)</option>
+                            </select>
+                        </div>
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                         <input type="date" name="treatmentDate" value="<?php echo isset($petInfo['date']) ? $petInfo['date'] : date('Y-m-d'); ?>" required>
                     </div>
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Consultation Fee (RM)</label>
-                        <input type="number" name="treatmentFee" id="baseFee" step="0.01" placeholder="50.00" value="0.00" required>
+                        <input type="number" 
+                            name="treatmentFee" 
+                            id="baseFee" 
+                            step="0.10" 
+                            placeholder="20.00" 
+                            value="20.00" 
+                            required 
+                            onblur="this.value = parseFloat(this.value).toFixed(2)"
+                            onkeydown="return event.key != 'e' && event.key != 'E' && event.key != '+' && event.key != '-'">
                     </div>
                     
                     <div class="lg:col-span-2">
