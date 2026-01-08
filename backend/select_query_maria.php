@@ -96,51 +96,68 @@ function getAppointmentByIdMaria($appointmentID) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+// UPDATED: Handle new status mappings from Treatment to Appointment
 function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
     $conn = getMariaDBConnection(); 
     if (!$conn) return false;
 
     try {
-        // --- MATCH ANIQ'S EXACT ENUM VALUES ---
-        
-        $newStatus = 'Pending'; // Default fallback
+        // Map Treatment Status (PostgreSQL form) to Appointment Status (MariaDB Enum)
+        $newApptStatus = 'Pending'; // Default fallback
 
-        if ($treatmentStatus === 'Completed') {
-            $newStatus = 'Completed'; 
-        } 
-        elseif ($treatmentStatus === 'In Progress') {
-            $newStatus = 'Confirmed'; 
-        }
-        elseif ($treatmentStatus === 'Deceased') {
-            $newStatus = 'Cancelled'; 
+        switch ($treatmentStatus) {
+            case 'Confirmed':
+                $newApptStatus = 'Confirmed';
+                break;
+            case 'In Progress':
+                // An appointment is still technically 'Confirmed' while actively in progress
+                $newApptStatus = 'Confirmed'; 
+                break;
+            case 'Completed':
+                $newApptStatus = 'Completed';
+                break;
+            case 'Cancelled':
+                $newApptStatus = 'Cancelled';
+                break;
+            case 'Deceased':
+                // If the pet died during treatment, the appointment outcome is effectively cancelled/ended
+                $newApptStatus = 'Cancelled'; 
+                break;
+            case 'Pending':
+            default:
+                $newApptStatus = 'Pending';
+                break;
         }
 
         $sql = "UPDATE appointment SET status = ? WHERE appointment_id = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->execute([$newStatus, $appointmentID]);
+        $stmt->execute([$newApptStatus, $appointmentID]);
         
         return true;
 
     } catch (PDOException $e) {
-        error_log("Sync Error: " . $e->getMessage());
+        error_log("MariaDB Appointment Status Update Error: " . $e->getMessage());
         return false;
     }
 }
 
 /* =========================
-   INSERT FOLLOW-UP (ADDED)
+   INSERT FOLLOW-UP (ID FORMAT: A00036)
 ========================= */
 
 function getNextAppointmentIDMaria() {
     $conn = getMariaDBConnection();
     try {
-        // Find the highest ID (e.g., A005)
+        // Find the highest ID (e.g., A00035)
         $stmt = $conn->query("SELECT MAX(CAST(SUBSTRING(appointment_id, 2) AS UNSIGNED)) FROM appointment");
         $max = $stmt->fetchColumn();
         $num = $max ? $max + 1 : 1;
-        return 'A' . str_pad($num, 3, '0', STR_PAD_LEFT);
+        
+        // Padding to 5 digits (e.g., A00036)
+        return 'A' . str_pad($num, 5, '0', STR_PAD_LEFT);
+        
     } catch (PDOException $e) {
-        return "A999"; // Fallback
+        return "A00001"; // Fallback
     }
 }
 
@@ -173,7 +190,20 @@ function getAllService() {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-
-
-
+/* =========================
+   CHECK AVAILABILITY
+========================= */
+function getBookedTimesMaria($date, $vetID) {
+    $conn = getMariaDBConnection();
+    // Fetch times where status is NOT Cancelled or Rejected
+    $sql = "SELECT time FROM appointment 
+            WHERE date = ? 
+            AND vet_id = ? 
+            AND status NOT IN ('Cancelled', 'Deceased', 'Rejected')";
+            
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$date, $vetID]);
+    
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
 ?>

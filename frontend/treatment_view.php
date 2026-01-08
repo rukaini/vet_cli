@@ -14,8 +14,6 @@ if (empty($vetName) || $vetName == $vetID) {
         $vetData = getVetByIdPG($vetID); // Calls your PostgreSQL function
         if ($vetData && isset($vetData['vet_name'])) {
             $vetName = $vetData['vet_name'];
-            
-            // Update both session keys to be safe (case-sensitivity fix)
             $_SESSION['vetName'] = $vetName; 
             $_SESSION['vetname'] = $vetName; 
         }
@@ -260,14 +258,23 @@ include "../frontend/vetheader.php";
                 </div>
                 
                 <div class="mt-8 border-t pt-6" style="border-color: var(--secondary-color);">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4" style="color: var(--primary-color);">Medicine Dispensed</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4" style="color: var(--primary-color);">Medicine & Extras</h3>
                     <div id="medicine-details-container" class="space-y-4"></div>
-                    <button type="button" id="addMedicineBtn" style="background-color: var(--primary-color);" class="mt-4 flex items-center justify-center space-x-2 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        <span>Add Medicine</span>
-                    </button>
+                    
+                    <div class="flex flex-wrap gap-3 mt-4">
+                        <button type="button" id="addMedicineBtn" style="background-color: var(--primary-color);" class="flex items-center justify-center space-x-2 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            <span>Add Medicine</span>
+                        </button>
+                        
+                        <button type="button" id="openFollowUpBtn" class="flex items-center justify-center space-x-2 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition duration-300" style="background-color: var(--primary-color);">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span>Schedule Follow-up</span>
+                        </button>
+                    </div>
+
                     <div class="mt-6 p-4 rounded-md lg:col-span-4" style="background-color: var(--secondary-color); border: 1px solid var(--primary-color);">
                         <p class="font-bold" style="color: var(--primary-color);">Total Fee (Consultation + Medicine): RM <span id="total-fee-display">0.00</span></p>
                     </div>
@@ -284,32 +291,53 @@ include "../frontend/vetheader.php";
                 <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
                     <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
                         
-                        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md scale-95 opacity-0" id="modalPanel">
+                        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl scale-95 opacity-0" id="modalPanel">
                             
                             <div class="absolute top-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
 
-                            <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                            <div class="bg-white px-4 pb-4 pt-5 sm:p-8 sm:pb-6">
                                 <div class="sm:flex sm:items-start">
-                                    <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-teal-50 sm:mx-0 sm:h-10 sm:w-10">
-                                        <i class="fas fa-syringe text-teal-600"></i>
+                                    <div class="mx-auto flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-teal-50 sm:mx-0 sm:h-12 sm:w-12">
+                                        <i class="fas fa-calendar-check text-2xl text-teal-600"></i>
                                     </div>
                                     <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                        <h3 class="text-lg font-bold leading-6 text-gray-800" id="modal-title">Vaccination Follow-up</h3>
+                                        <h3 class="text-xl font-bold leading-6 text-gray-800" id="modal-title">Schedule Follow-up Appointment</h3>
                                         <div class="mt-2">
                                             <p class="text-sm text-gray-500">
-                                                You selected <strong>Vaccination</strong>. Would you like to schedule the next dose automatically?
+                                                Please select the date and time for the next appointment. Sundays are closed.
                                             </p>
                                             
-                                            <div class="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                                <div class="mb-3">
-                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Dose Date (+2 Weeks)</label>
+                                            <div class="mt-6 bg-gray-50 p-6 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Appointment Date</label>
                                                     <input type="date" name="followUpDate" id="followUpDate" 
-                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border">
+                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
+                                                    <p class="text-xs text-red-500 mt-1 hidden" id="sundayError">Sundays are not available.</p>
                                                 </div>
                                                 <div>
-                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Time</label>
-                                                    <input type="time" name="followUpTime" id="followUpTime" value="10:00"
-                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border">
+                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Time (30 Min Intervals)</label>
+                                                    <select name="followUpTime" id="followUpTime" 
+                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
+                                                        <option value="09:00">09:00 AM</option>
+                                                        <option value="09:30">09:30 AM</option>
+                                                        <option value="10:00">10:00 AM</option>
+                                                        <option value="10:30">10:30 AM</option>
+                                                        <option value="11:00">11:00 AM</option>
+                                                        <option value="11:30">11:30 AM</option>
+                                                        <option value="12:00">12:00 PM</option>
+                                                        <option value="12:30">12:30 PM</option>
+                                                        <option value="13:00">01:00 PM</option>
+                                                        <option value="13:30">01:30 PM</option>
+                                                        <option value="14:00">02:00 PM</option>
+                                                        <option value="14:30">02:30 PM</option>
+                                                        <option value="15:00">03:00 PM</option>
+                                                        <option value="15:30">03:30 PM</option>
+                                                        <option value="16:00">04:00 PM</option>
+                                                        <option value="16:30">04:30 PM</option>
+                                                        <option value="17:00">05:00 PM</option>
+                                                        <option value="17:30">05:30 PM</option>
+                                                        <option value="18:00">06:00 PM</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -319,12 +347,12 @@ include "../frontend/vetheader.php";
                             
                             <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-100 gap-2">
                                 <button type="button" id="confirmFollowUp" 
-                                        class="inline-flex w-full justify-center rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 sm:ml-3 sm:w-auto transition-all">
-                                    <i class="fas fa-calendar-check mr-2 mt-1"></i> Schedule
+                                        class="inline-flex w-full justify-center rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 sm:ml-3 sm:w-auto transition-all">
+                                    <i class="fas fa-calendar-check mr-2 mt-1"></i> Confirm Schedule
                                 </button>
                                 <button type="button" id="cancelFollowUp" 
-                                        class="mt-3 inline-flex w-full justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-all">
-                                    Skip
+                                        class="mt-3 inline-flex w-full justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-all">
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -400,7 +428,7 @@ include "../frontend/vetheader.php";
                             ?>
                                 <tr class="hover:bg-gray-50 transition-colors duration-200">
                                     <td class="px-6 py-4 text-sm font-semibold text-teal-700"><?php echo htmlspecialchars($row['treatment_id']); ?></td>
-                                    <td class="px-6 py-4 text-sm text-gray-600 font-mono"><?php echo htmlspecialchars($row['treatment_date']); ?></td>
+                                    <td class="px-6 py-4 text-sm text-gray-600 font-mono"><?php echo date('d/m/Y', strtotime($row['treatment_date'])); ?></td>
                                     <td class="px-6 py-4">
                                         <span class="px-3 py-1 inline-flex text-xs font-medium rounded-full <?php echo $status_class; ?>">
                                             <?php echo htmlspecialchars($row['treatment_status']); ?>
@@ -428,18 +456,19 @@ include "../frontend/vetheader.php";
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- DATA PASSED FROM PHP ---
+        const vetID = "<?php echo $vetID; ?>";
+        
         const medicineContainer = document.getElementById('medicine-details-container');
         const addMedicineBtn = document.getElementById('addMedicineBtn');
         const baseFeeInput = document.getElementById('baseFee');
         const totalFeeDisplay = document.getElementById('total-fee-display');
         let medicineCounter = 0;
         
-        // Pass PHP array to JS safely
         const medicines = <?php echo json_encode($medicine_options); ?>;
         
         function createMedicineRow() {
             const rowId = `med-row-${medicineCounter++}`;
-            // UPDATED: Set default to empty value so it can be NULL
             let optionsHtml = '<option value="" data-price="0.00" selected>Select Medicine</option>';
             
             medicines.forEach(med => {
@@ -450,7 +479,6 @@ include "../frontend/vetheader.php";
             row.id = rowId;
             row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-2 p-4 border border-gray-200 rounded-md bg-white shadow-sm';
             
-            // REMOVED 'required' FROM SELECT to allow saving without selecting a medicine
             row.innerHTML = `
                 <div class="col-span-12 sm:col-span-4">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Medicine Name</label>
@@ -484,7 +512,6 @@ include "../frontend/vetheader.php";
             quantityInput.addEventListener('input', updateRowCalculation);
             removeButton.addEventListener('click', () => { row.remove(); calculateTotalFee(); });
 
-            // Initialize this row's calc
             updateRowCalculation.call(selectElement);
             medicineContainer.appendChild(row);
         }
@@ -496,7 +523,6 @@ include "../frontend/vetheader.php";
             const subtotalDisplay = row.querySelector('.subtotal-display');
             
             const selectedOption = select.options[select.selectedIndex];
-            // Safe fallback if data-price is missing
             const unitPrice = parseFloat(selectedOption.getAttribute('data-price')) || 0.00; 
             const subtotal = unitPrice * parseInt(quantity || 0);
             
@@ -514,11 +540,8 @@ include "../frontend/vetheader.php";
             totalFeeDisplay.textContent = finalTotal.toFixed(2);
         }
         
-        // Listeners
-        addMedicineBtn.addEventListener('click', createMedicineRow);
+        if(addMedicineBtn) addMedicineBtn.addEventListener('click', createMedicineRow);
         baseFeeInput.addEventListener('input', calculateTotalFee);
-        
-        // Run once on load
         calculateTotalFee();
         
         // Toggle Logic for List
@@ -545,7 +568,7 @@ include "../frontend/vetheader.php";
             });
         }
         
-    // --- VACCINATION MODAL LOGIC ---
+    // --- VACCINATION / FOLLOW-UP MODAL LOGIC ---
     const diagnosisSelect = document.getElementById('diagnosisSelect');
     const modal = document.getElementById('vaccineModal');
     const backdrop = document.getElementById('modalBackdrop');
@@ -554,13 +577,18 @@ include "../frontend/vetheader.php";
     const cancelBtn = document.getElementById('cancelFollowUp');
     const dateInput = document.getElementById('followUpDate');
     const timeInput = document.getElementById('followUpTime');
+    const sundayError = document.getElementById('sundayError');
+    
+    const openFollowUpBtn = document.getElementById('openFollowUpBtn');
 
-    // Diagnosis Dropdown Logic (Existing + Modal)
+    if (openFollowUpBtn) {
+        openFollowUpBtn.addEventListener('click', openModal);
+    }
+
     if (diagnosisSelect) {
         const diagInput = document.getElementById('diagnosisInput');
 
         diagnosisSelect.addEventListener('change', function() {
-            // 1. Handle "Other" input
             if (this.value === 'Other') {
                 diagInput.classList.remove('hidden');
                 diagInput.style.display = 'block';
@@ -571,30 +599,86 @@ include "../frontend/vetheader.php";
                 diagInput.style.display = 'none';
                 diagInput.value = this.value;
             }
-
-            // 2. Handle Vaccination Modal
-            if (this.value === 'Vaccination') {
-                openModal();
-            }
         });
+    }
+
+    // --- CHECK AVAILABILITY LOGIC ---
+    dateInput.addEventListener('change', function() {
+        checkAvailability(this.value);
+    });
+
+    function checkAvailability(date) {
+        if (!date) return;
+
+        // Reset: Show all options first
+        const options = timeInput.options;
+        for (let i = 0; i < options.length; i++) {
+            options[i].style.display = 'block';
+            options[i].disabled = false;
+        }
+
+        // Handle Sunday check first
+        const selectedDate = new Date(date);
+        const day = selectedDate.getDay(); // 0 = Sunday
+        if (day === 0) {
+            dateInput.value = ''; 
+            sundayError.classList.remove('hidden');
+            alert('Sorry, the clinic is closed on Sundays. Please select another date.');
+            return;
+        } else {
+            sundayError.classList.add('hidden');
+        }
+
+        // AJAX Request
+        fetch(`../backend/check_availability.php?date=${date}&vet_id=${vetID}`)
+            .then(response => response.json())
+            .then(bookedTimes => {
+                if (!Array.isArray(bookedTimes)) return;
+
+                // Loop through options and hide if matched
+                for (let i = 0; i < options.length; i++) {
+                    const optValue = options[i].value; // e.g., "09:00"
+                    
+                    // Simple check: does the booked time start with this option value?
+                    const isBooked = bookedTimes.some(booked => booked.startsWith(optValue));
+                    
+                    if (isBooked) {
+                        options[i].style.display = 'none'; // Hide it
+                        options[i].disabled = true;        // Disable it
+                    }
+                }
+                
+                if (timeInput.selectedOptions[0].disabled) {
+                    timeInput.value = ""; 
+                }
+            })
+            .catch(err => console.error("Error checking availability:", err));
     }
 
     function openModal() {
         modal.classList.remove('hidden');
-        // Small delay for animation
         setTimeout(() => {
             backdrop.classList.remove('opacity-0');
             panel.classList.remove('opacity-0', 'scale-95');
             panel.classList.add('opacity-100', 'scale-100');
         }, 10);
 
-        // Auto-set Date to +2 Weeks (14 days)
-        const today = new Date();
-        today.setDate(today.getDate() + 14); 
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        if (!dateInput.value) {
+            const today = new Date();
+            today.setDate(today.getDate() + 14); 
+            // Avoid defaulting to Sunday
+            if (today.getDay() === 0) {
+                today.setDate(today.getDate() + 1);
+            }
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+            
+            checkAvailability(dateInput.value);
+        } else {
+            checkAvailability(dateInput.value);
+        }
     }
 
     function closeModal() {
@@ -606,9 +690,7 @@ include "../frontend/vetheader.php";
         }, 300);
     }
 
-    // Confirm: Keep values in the inputs (they are already inside the form) and close
     confirmBtn.addEventListener('click', function() {
-        // Change button style to indicate success
         this.innerHTML = '<i class="fas fa-check mr-2"></i> Scheduled';
         this.classList.remove('bg-teal-600', 'hover:bg-teal-500');
         this.classList.add('bg-green-600', 'hover:bg-green-500');
@@ -616,7 +698,6 @@ include "../frontend/vetheader.php";
         setTimeout(closeModal, 600);
     });
 
-    // Cancel: Clear values so backend ignores them
     cancelBtn.addEventListener('click', function() {
         dateInput.value = '';
         timeInput.value = '';
