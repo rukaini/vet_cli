@@ -37,6 +37,8 @@
                 <ul>
                     <li><a href="http://10.48.74.199:81/vetcli/frontend/vethome.php" class="active">Home</a></li>
 
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/vethome.php">Home</a></li>
+
                     <li class="dropdown"><a href="#"><span>Patient Records</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
                             <li><a href="http://10.48.74.61/Vet_clinic/frontend/vet_app_list.php">List Appointment</a></li>

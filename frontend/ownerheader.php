@@ -113,7 +113,7 @@
                         </ul>
                     </li>
 
-                    <li><a href="../frontend/ownertreatment_details.php">Medical History</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/medical_hist.php">Medical History</a></li>
 
                     <li>
                         <a href="http://10.48.74.197/vetclinic/frontend/paymentstatusowner.php?owner_id=<?php echo isset($_SESSION['ownerID']) ? htmlspecialchars($_SESSION['ownerID']) : ''; ?>">
@@ -144,3 +144,5 @@
     <script>
         AOS.init(); // initialize animations
     </script>
+
+

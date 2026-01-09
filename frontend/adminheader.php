@@ -55,25 +55,10 @@
                         </ul>
                     </li>
 
-                    <li class="dropdown"><a href="#"><span>Treatment</span> <i class="bi bi-chevron-down"></i></a>
-                        <ul>
-                            <li><a href="treatment_view.php">View Treatment</a></li>
-                        </ul>
-                    </li>
+                    <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php">Services</a></li>
 
-                    <li><a href="../frontend/services.php">Service</a></li>
+                     <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php">Payments</a></li>
 
-                    <li class="dropdown"><a href="#"><span>Appointment</span> <i class="bi bi-chevron-down"></i></a>
-                        <ul>
-                            <li><a href="../frontend/.php">View Appointment</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="dropdown"><a href="#"><span>Payment</span> <i class="bi bi-chevron-down"></i></a>
-                        <ul>
-                            <li><a href="http://10.48.74.197/test/frontend/paymenthistory.php">List Payment</a></li>
-                        </ul>
-                    </li>
 
                     <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php">MyProfile</a></li>
                 </ul>
