@@ -1,10 +1,26 @@
 <?php
 session_start();
 
-$_SESSION = []; // Clear all session data
+// Clear session array
+$_SESSION = [];
 
-session_destroy(); // Destroy the session
+// Destroy session
+session_destroy();
 
-header("Location: http://10.48.74.199:81/vetcli/frontend/userlogin.php");  
-exit();
-?>
+// Remove session cookie
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(
+        session_name(),
+        '',
+        time() - 42000,
+        $params["path"],
+        $params["domain"],
+        $params["secure"],
+        $params["httponly"]
+    );
+}
+
+// Redirect to MAIN login page
+header("Location: http://10.48.74.199:81/vetcli/frontend/userlogin.php");
+exit;

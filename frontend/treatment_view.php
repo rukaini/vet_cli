@@ -7,6 +7,7 @@ $appointmentID = $_GET['appointment_id'];
 $vetName = $_SESSION['vetName'] ?? null;
 
 require_once "../backend/treatment_controller.php";
+require_once "../backend/token_auth.php"; // 🔐 ENTRY POINT
 
 // If vetName is empty OR it is just the ID (fallback from controller), fetch the real name
 if (empty($vetName) || $vetName == $vetID) {
@@ -313,40 +314,55 @@ include "../frontend/vetheader.php";
                                             <p class="text-sm text-gray-500">
                                                 Please select the date and time for the next appointment. Sundays are closed.
                                             </p>
-                                            
-                                            <div class="mt-6 bg-gray-50 p-6 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Appointment Date</label>
-                                                    <input type="date" name="followUpDate" id="followUpDate" 
-                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
-                                                    <p class="text-xs text-red-500 mt-1 hidden" id="sundayError">Sundays are not available.</p>
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Time (30 Min Intervals)</label>
-                                                    <select name="followUpTime" id="followUpTime" 
-                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
-                                                        <option value="09:00">09:00 AM</option>
-                                                        <option value="09:30">09:30 AM</option>
-                                                        <option value="10:00">10:00 AM</option>
-                                                        <option value="10:30">10:30 AM</option>
-                                                        <option value="11:00">11:00 AM</option>
-                                                        <option value="11:30">11:30 AM</option>
-                                                        <option value="12:00">12:00 PM</option>
-                                                        <option value="12:30">12:30 PM</option>
-                                                        <option value="13:00">01:00 PM</option>
-                                                        <option value="13:30">01:30 PM</option>
-                                                        <option value="14:00">02:00 PM</option>
-                                                        <option value="14:30">02:30 PM</option>
-                                                        <option value="15:00">03:00 PM</option>
-                                                        <option value="15:30">03:30 PM</option>
-                                                        <option value="16:00">04:00 PM</option>
-                                                        <option value="16:30">04:30 PM</option>
-                                                        <option value="17:00">05:00 PM</option>
-                                                        <option value="17:30">05:30 PM</option>
-                                                        <option value="18:00">06:00 PM</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                           <div class="mt-6 bg-gray-50 p-6 rounded-xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Follow-up Service</label>
+        <select name="followUpService" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
+            <?php 
+            // Use the $serviceMapping array already defined at the top of your file
+            foreach ($serviceMapping as $id => $name): 
+                $isSelected = ($id === 'SV001') ? 'selected' : ''; // Default to General Checkup
+            ?>
+                <option value="<?php echo htmlspecialchars($id); ?>" <?php echo $isSelected; ?>>
+                    <?php echo htmlspecialchars($name); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Appointment Date</label>
+                                    <input type="date" name="followUpDate" id="followUpDate" 
+                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
+                                    <p class="text-xs text-red-500 mt-1 hidden" id="sundayError">Sundays are not available.</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Time (30 Min Intervals)</label>
+                                    <select name="followUpTime" id="followUpTime" 
+                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border">
+                                        <option value="09:00">09:00 AM</option>
+                                        <option value="09:30">09:30 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="10:30">10:30 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="11:30">11:30 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="12:30">12:30 PM</option>
+                                        <option value="13:00">01:00 PM</option>
+                                        <option value="13:30">01:30 PM</option>
+                                        <option value="14:00">02:00 PM</option>
+                                        <option value="14:30">02:30 PM</option>
+                                        <option value="15:00">03:00 PM</option>
+                                        <option value="15:30">03:30 PM</option>
+                                        <option value="16:00">04:00 PM</option>
+                                        <option value="16:30">04:30 PM</option>
+                                        <option value="17:00">05:00 PM</option>
+                                        <option value="17:30">05:30 PM</option>
+                                        <option value="18:00">06:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -161,13 +161,13 @@ function getNextAppointmentIDMaria() {
     }
 }
 
-function createFollowUpAppointment($ownerID, $petID, $vetID, $date, $time) {
+function createFollowUpAppointment($ownerID, $petID, $vetID, $date, $time, $serviceID) {
     $conn = getMariaDBConnection();
     if (!$conn) return false;
 
     try {
         $newID = getNextAppointmentIDMaria();
-        $serviceID = 'SV003'; // Hardcoded ID for 'Vaccination'
+        // $serviceID = 'SV003'; // REMOVED hardcoded value
         $status = 'Pending';
         $createdAt = date('Y-m-d H:i:s');
 
