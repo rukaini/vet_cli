@@ -1,6 +1,6 @@
 <?php
 session_start();
-
+require_once "../backend/token_auth.php";
 // --- 1. Authentication Check (Dual Access) ---
 $userID = null;
 $userRole = null;

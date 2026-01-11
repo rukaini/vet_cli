@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once "../backend/token_auth.php";
 
 // --- 1. Authentication Check (Admin Only) ---
 if (!isset($_SESSION['adminID'])) {

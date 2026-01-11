@@ -1,7 +1,7 @@
 <?php
 // frontend/medicinedetails.php
 session_start();
-
+require_once "../backend/token_auth.php";
 /* ================= AUTH ================= */
 if (isset($_GET['admin_id'])) {
     $_SESSION['adminID'] = trim($_GET['admin_id']);

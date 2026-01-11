@@ -1,6 +1,6 @@
 <?php
 session_start();
-
+require_once "../backend/token_auth.php";
 // --- FORCE UPDATE LOGIC (Added for Debugging) ---
 if (isset($_GET['vet_id'])) {
     $_SESSION['vetID'] = trim($_GET['vet_id']);

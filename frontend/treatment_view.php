@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+require_once "../backend/token_auth.php";
 
 $vetID = $_SESSION['vetID'];             
 $appointmentID = $_GET['appointment_id'];
