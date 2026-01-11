@@ -24,3 +24,4 @@ if (ini_get("session.use_cookies")) {
 // Redirect to MAIN login page
 header("Location: http://10.48.74.199:81/vetcli/frontend/userlogin.php");
 exit;
+?>

@@ -1,5 +1,6 @@
 <?php
 // Backend Treatment Controller
+require_once "../backend/token_auth.php";
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/select_query_pg.php';
 //require_once __DIR__ . '/select_query_mysqli.php';
