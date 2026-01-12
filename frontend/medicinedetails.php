@@ -1,7 +1,12 @@
 <?php
 // frontend/medicinedetails.php
 session_start();
-require_once "../backend/token_auth.php";
+//require_once "../backend/token_auth.php";
+include "../frontend/adminheader.php"; 
+
+require_once "../backend/connection.php";
+require_once "../backend/select_query_pg.php"; 
+
 /* ================= AUTH ================= */
 if (isset($_GET['admin_id'])) {
     $_SESSION['adminID'] = trim($_GET['admin_id']);
@@ -13,7 +18,33 @@ if (!isset($_SESSION['adminID'])) {
 }
 
 $adminID = $_SESSION['adminID'];
-include "../frontend/adminheader.php";
+
+// --- 1. Load Backend Connections & Functions ---
+require_once "../backend/connection.php";
+require_once "../backend/select_query_pg.php"; 
+
+// --- 2. Fetch Admin Name Logic ---
+// Try to get name from Session
+$adminName = $_SESSION['adminName'] ?? $_SESSION['adminname'] ?? null;
+
+// If name is missing OR matches the ID (fallback), fetch real name from Postgres
+if (empty($adminName) || $adminName === $adminID) {
+    if (function_exists('getAdminByIdPG')) {
+        $adminData = getAdminByIdPG($adminID);
+        if ($adminData && !empty($adminData['admin_name'])) {
+            $adminName = $adminData['admin_name'];
+            // Update session so we don't have to query again
+            $_SESSION['adminName'] = $adminName; 
+        }
+    }
+}
+
+// Default fallback
+if (empty($adminName)) {
+    $adminName = 'Administrator';
+}
+
+//include "../frontend/adminheader.php";
 ?>
 
 <!DOCTYPE html>
@@ -233,7 +264,11 @@ include "../frontend/adminheader.php";
     <div class="mt-4 md:mt-0 md:absolute md:right-0 md:top-1/2 md:transform md:-translate-y-1/2 flex justify-center">
          <div class="inline-flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-100 text-sm text-gray-600">
             <i class="fas fa-user-shield mr-2 text-teal-600"></i>
-            Admin: <span class="font-semibold ml-1"><?php echo htmlspecialchars($adminID); ?></span>
+            Admin: <span class="font-semibold ml-1"><!--<?php echo htmlspecialchars($adminID); ?>--></span>
+            
+            <?php if (!empty($adminName) && $adminName !== $adminID && $adminName !== 'Administrator'): ?>
+                <span class="ml-1 text-teal-600 font-medium"><?php echo htmlspecialchars($adminName); ?></span>
+            <?php endif; ?>
         </div>
     </div>
 </div>

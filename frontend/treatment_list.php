@@ -1,64 +1,91 @@
 <?php
 session_start();
-require_once "../backend/token_auth.php";
-// --- FORCE UPDATE LOGIC (Added for Debugging) ---
-if (isset($_GET['vet_id'])) {
-    $_SESSION['vetID'] = trim($_GET['vet_id']);
-}
 
-// --- 1. Authentication Check ---
-if (!isset($_SESSION['vetID'])) {
+// --- 1. PROCESS TOKEN & AUTHENTICATION FIRST ---
+// We must include this MANUALLY here so we know the role before loading the visual header
+require_once "../backend/auth_header.php"; 
+
+// --- 2. DETERMINE ROLE & LOAD HEADER ---
+$userType = $_SESSION['userType'] ?? '';
+$isAdmin = ($userType === 'admin');
+$isVet   = ($userType === 'vet');
+
+if ($isAdmin) {
+    // Admin logged in -> Load Admin Header (Expects 'admin' role)
+    require_once "../frontend/adminheader.php";
+    $currentUserID = $_SESSION['adminID'] ?? 'Admin';
+    $roleLabel = "Admin Access";
+} 
+elseif ($isVet) {
+    // Vet logged in -> Load Vet Header (Expects 'vet' role)
+    require_once "../frontend/vetheader.php";
+    $currentUserID = $_SESSION['vetID'] ?? 'Vet';
+    $roleLabel = "Vet Access";
+} 
+else {
+    // Neither -> Unauthorized
     echo "<script>alert('Unauthorized access. Please login.'); window.location.href='../backend/logout.php';</script>";
     exit();
 }
 
-$vetID = $_SESSION['vetID'];
-$vetName = "Veterinarian";
-
-// --- 2. Include Backend Files ---
+// --- 3. INCLUDE BACKEND FILES ---
 require_once "../backend/connection.php";
 require_once "../backend/select_query_pg.php"; 
 require_once "../backend/treatment_controller.php";
 
-// --- 3. Force Fetch Vet Name Logic ---
-$displayName = ""; 
+// --- 4. FETCH USER NAME (Robust Logic) ---
+$displayName = "";
 
-if (isset($_SESSION['vetName']) && !empty($_SESSION['vetName']) && $_SESSION['vetName'] !== $vetID) {
-    $displayName = $_SESSION['vetName'];
+if ($isAdmin) {
+    // Admin Name Fetching
+    $displayName = $_SESSION['adminName'] ?? $_SESSION['adminname'] ?? null;
+    if (empty($displayName) || $displayName === $currentUserID) {
+        if (function_exists('getAdminByIdPG')) {
+            $adminData = getAdminByIdPG($currentUserID);
+            if ($adminData && !empty($adminData['admin_name'])) {
+                $displayName = $adminData['admin_name'];
+                $_SESSION['adminName'] = $displayName;
+            }
+        }
+    }
 } else {
-    if (function_exists('getVetByIdPG')) {
-        $vetData = getVetByIdPG($vetID);
-        if ($vetData && isset($vetData['vet_name'])) {
-            $vetName = $vetData['vet_name'];
-            $_SESSION['vetName'] = $vetName; 
+    // Vet Name Fetching
+    $displayName = $_SESSION['vetName'] ?? $_SESSION['vetname'] ?? null;
+    if (empty($displayName) || $displayName === $currentUserID) {
+        if (function_exists('getVetByIdPG')) {
+            $vetData = getVetByIdPG($currentUserID);
+            if ($vetData && !empty($vetData['vet_name'])) {
+                $displayName = $vetData['vet_name'];
+                $_SESSION['vetName'] = $displayName; 
+            }
         }
     }
 }
 
+// Fallback Name
 if (empty($displayName)) {
-    $displayName = "Veterinarian"; 
+    $displayName = $isAdmin ? "Administrator" : "Veterinarian";
 }
 
-$sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'date_desc';
+// --- 5. PREPARE DATA FOR TABLE ---
+$sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'id_desc';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-// --- PREPARE DATA FETCHING ---
-// Determine DB connections
-$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); // For Treatments/Instructions
-$dbMaria = isset($conn) ? $conn : null; // For Appointments (Time)
+// Database Connection Handling
+$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); 
+$dbMaria = isset($conn) ? $conn : null; 
 
 $instructionsMap = [];
 $treatmentTimes = [];
 
+// ... (Rest of your existing data fetching logic remains the same below)
 if (!empty($treatments) && $dbLocal) {
     try {
-        // Get IDs from the current page's treatments
         $t_ids = array_column($treatments, 'treatment_id');
-        
         if (!empty($t_ids)) {
             $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
 
-            // --- 1. FETCH INSTRUCTIONS ---
+            // Fetch Instructions
             $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name 
                         FROM MEDICINE_DETAILS md
                         LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
@@ -76,10 +103,10 @@ if (!empty($treatments) && $dbLocal) {
                     'instruction' => $inst['instruction']
                 ];
             }
-
-            // --- 2. FETCH APPOINTMENT TIMES ---
-            // First: Get appointment_id for these treatments (Local DB)
-            $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
+            
+            // Fetch Times logic (same as before)...
+            // [Keep your existing logic for fetching times here]
+             $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
             $stmtAppt = $dbLocal->prepare($sqlAppt);
             $stmtAppt->execute($t_ids);
             $apptMap = $stmtAppt->fetchAll(PDO::FETCH_KEY_PAIR); // [treatment_id => appointment_id]
@@ -105,12 +132,8 @@ if (!empty($treatments) && $dbLocal) {
                 }
             }
         }
-    } catch (Exception $e) {
-        // Silently fail if tables/connections missing
-    }
+    } catch (Exception $e) { }
 }
-
-include "../frontend/vetheader.php";
 ?>
 
 <!DOCTYPE html>
@@ -235,20 +258,26 @@ include "../frontend/vetheader.php";
 <body>
 
 <div class="page-header mt-[80px]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-end">
-        <div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex items-center justify-center">
+        
+        <div class="text-center">
             <h1 class="text-3xl font-bold" style="color: var(--primary-color);">Treatment History</h1>
             <p class="text-gray-500 mt-2">View patient treatments, diagnoses, and fees.</p>
         </div>
-        <div class="hidden sm:block">
+
+        <div class="hidden sm:block absolute right-6 top-1/2 transform -translate-y-1/2">
              <div class="inline-flex items-center px-4 py-2 bg-teal-50 rounded-full border border-teal-100 text-sm text-teal-700">
-                <i class="fas fa-user-md mr-2"></i>
-                Vet Access : <strong><?php echo htmlspecialchars($vetID); ?></strong>
-                <?php if (!empty($displayName) && $displayName !== "Veterinarian"): ?>
-                    <span class="ml-1 text-gray-500">(<?php echo htmlspecialchars(urldecode($displayName)); ?>)</span>
+                
+                <?php if ($isAdmin): ?>
+                    <i class="fas fa-user-shield mr-2"></i>
+                <?php else: ?>
+                    <i class="fas fa-user-md mr-2"></i>
                 <?php endif; ?>
+
+                <?php echo $roleLabel; ?> : <strong><?php echo htmlspecialchars($displayName); ?></strong>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -260,21 +289,38 @@ include "../frontend/vetheader.php";
             <i class="fas fa-notes-medical mr-2 text-teal-500"></i> Records List
         </h2>
 
-        <form method="GET" action="" class="w-full md:w-auto flex items-center gap-3">
-            <label for="sort" class="text-sm font-semibold text-gray-500 whitespace-nowrap"><i class="fas fa-sort mr-1"></i> Sort by:</label>
-            <div class="relative">
-                <select name="sort" onchange="this.form.submit()" 
-                        class="cursor-pointer py-2 pl-3 pr-10 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none shadow-sm appearance-none">
-                    <option value="date_desc" <?php echo ($sort_by == 'date_desc') ? 'selected' : ''; ?>>Date: Newest First</option>
-                    <option value="date_asc" <?php echo ($sort_by == 'date_asc') ? 'selected' : ''; ?>>Date: Oldest First</option>
-                    <option value="id_desc" <?php echo ($sort_by == 'id_desc') ? 'selected' : ''; ?>>ID: High to Low</option>
-                    <option value="id_asc" <?php echo ($sort_by == 'id_asc') ? 'selected' : ''; ?>>ID: Low to High</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                    <i class="fas fa-chevron-down text-xs"></i>
-                </div>
+<form method="GET" action="" class="w-full md:w-auto flex flex-col md:flex-row items-center gap-3">
+    
+    <div class="relative w-full md:w-64">
+        <input type="text" name="search" 
+               value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>"
+               placeholder="Search diagnosis, ID, or description..." 
+               class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all shadow-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400"></i>
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2 w-full md:w-auto">
+        <label for="sort" class="text-sm font-semibold text-gray-500 whitespace-nowrap hidden md:inline"><i class="fas fa-sort mr-1"></i> Sort:</label>
+        <div class="relative w-full md:w-auto">
+            <select name="sort" onchange="this.form.submit()" 
+                    class="w-full cursor-pointer py-2 pl-3 pr-10 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none shadow-sm appearance-none">
+                <option value="date_desc" <?php echo ($sort_by == 'date_desc') ? 'selected' : ''; ?>>Date: Newest</option>
+                <option value="date_asc" <?php echo ($sort_by == 'date_asc') ? 'selected' : ''; ?>>Date: Oldest</option>
+                <option value="id_desc" <?php echo ($sort_by == 'id_desc') ? 'selected' : ''; ?>>ID: Descending</option>
+                <option value="id_asc" <?php echo ($sort_by == 'id_asc') ? 'selected' : ''; ?>>ID: Ascending</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                <i class="fas fa-chevron-down text-xs"></i>
             </div>
-        </form>
+        </div>
+    </div>
+
+    <button type="submit" class="hidden md:inline-block px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition shadow-sm">
+        Go
+    </button>
+</form>
     </div>
 
     <div class="glass-card fade-in" style="animation-delay: 0.1s;">

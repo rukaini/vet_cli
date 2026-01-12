@@ -1,7 +1,9 @@
 <?php
 session_start();
-require_once "../backend/token_auth.php";
+include "../frontend/adminheader.php"; 
 
+require_once "../backend/connection.php";
+require_once "../backend/select_query_pg.php"; // Crucial for getAdminByIdPG
 // --- 1. Authentication Check (Admin Only) ---
 if (!isset($_SESSION['adminID'])) {
     echo "<script>alert('Unauthorized access. Please login.'); window.location.href='../backend/logout.php';</script>";
@@ -11,13 +13,33 @@ if (!isset($_SESSION['adminID'])) {
 $adminID = $_SESSION['adminID'];
 
 // --- 2. Backend Connection & Data Fetching ---
-require_once "../backend/connection.php";
+//require_once "../backend/connection.php";
+//require_once "../backend/select_query_pg.php"; // Crucial for getAdminByIdPG
 
-// Use the Local MySQL Connection
+// --- 3. ROBUST ADMIN NAME FETCHING ---
+// Try to get name from Session (handle both 'adminName' and 'adminname')
+$adminName = $_SESSION['adminName'] ?? $_SESSION['adminname'] ?? null;
+
+// If name is missing OR it equals the ID (fallback), fetch from Postgres
+if (empty($adminName) || $adminName === $adminID) {
+    if (function_exists('getAdminByIdPG')) {
+        $adminData = getAdminByIdPG($adminID); 
+        if ($adminData && !empty($adminData['admin_name'])) {
+            $adminName = $adminData['admin_name'];
+            // Save back to session
+            $_SESSION['adminName'] = $adminName; 
+        }
+    }
+}
+
+// Fallback default
+if (empty($adminName)) {
+    $adminName = 'Administrator';
+}
+
+// --- 4. Fetch Inventory (MySQL) ---
 $conn = $connMySQL;
-
 try {
-    // Fetch all medicine details
     $sql = "SELECT medicine_id, medicine_name, stock_quantity, 
                    expiry_date, dosage_instructions, unit_price,
                    created_at
@@ -32,8 +54,8 @@ try {
     $error_msg = $e->getMessage();
 }
 
-// --- 3. Include Admin Header ---
-include "../frontend/adminheader.php"; 
+// --- 5. Include Admin Header ---
+
 ?>
 
 <!DOCTYPE html>
@@ -170,10 +192,14 @@ include "../frontend/adminheader.php";
         <h1 class="text-3xl font-bold" style="color: var(--primary-color);">Stock Medicine</h1>
         <p class="text-gray-500 mt-2">Inventory overview and stock status.</p>
     </div>
-    <div class="hidden sm:block absolute right-8 top-1/2 transform -translate-y-1/2">
-         <div class="inline-flex items-center px-4 py-2 bg-teal-50 rounded-full border border-teal-100 text-sm text-teal-700">
-            <i class="fas fa-user-shield mr-2"></i>
-            Admin: <span class="font-semibold ml-1"><?php echo htmlspecialchars($adminID); ?></span>
+    <div class="mt-4 md:mt-0 md:absolute md:right-0 md:top-1/2 md:transform md:-translate-y-1/2 flex justify-center">
+         <div class="inline-flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-100 text-sm text-gray-600">
+            <i class="fas fa-user-shield mr-2 text-teal-600"></i>
+            Admin: <span class="font-semibold ml-1"><!--<?php echo htmlspecialchars($adminID); ?>--></span>
+            
+            <?php if (!empty($adminName) && $adminName !== $adminID && $adminName !== 'Administrator'): ?>
+                <span class="ml-1 text-teal-600 font-medium"><?php echo htmlspecialchars($adminName); ?></span>
+            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -1,9 +1,7 @@
 <?php
 // Backend Treatment Controller
-require_once "../backend/token_auth.php";
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/select_query_pg.php';
-//require_once __DIR__ . '/select_query_mysqli.php';
 require_once __DIR__ . '/select_query_maria.php';
 
 // =========================================================================
@@ -31,7 +29,6 @@ function getMedicines($conn) {
        $stmt = $conn->prepare("SELECT medicine_id, medicine_name, unit_price, stock_quantity FROM MEDICINE WHERE stock_quantity > 0 ORDER BY medicine_name ASC");
        $stmt->execute();
        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-       
        if (empty($result)) {
            $stmt = $conn->prepare("SELECT medicine_id, medicine_name, unit_price, stock_quantity FROM MEDICINE ORDER BY medicine_name ASC");
            $stmt->execute();
@@ -80,11 +77,10 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
                $petID_Log = $postData['petID'] ?? $apptData['pet_id'] ?? 'Unknown';
                $ownerID_Log = $apptData['owner_id'] ?? 'Unknown';
 
-               // Try to log history locally
                try {
                    $stmtHist = $conn->prepare("INSERT INTO PET_HISTORY (pet_id, owner_id, event_type, description) VALUES (?, ?, ?, ?)");
                    $stmtHist->execute([$petID_Log, $ownerID_Log, 'Deceased', "Deceased in treatment $treatmentID"]);
-               } catch (Exception $ex) { /* Ignore if table missing */ }
+               } catch (Exception $ex) { /* Ignore */ }
            }
        }
 
@@ -133,25 +129,20 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 
        $conn->commit();
 
-// --- START: FOLLOW-UP VACCINATION LOGIC ---
+       // Follow-Up Logic
        if (!empty($postData['followUpDate']) && !empty($postData['followUpTime'])) {
            if (function_exists('createFollowUpAppointment')) {
-               // Retrieve IDs needed for appointment
                $f_ownerID = $postData['ownerID'] ?? ''; 
                $f_petID   = $postData['petID'] ?? '';
-               // Get selected service or default to General Checkup (SV001) if missing
                $f_serviceID = $postData['followUpService'] ?? 'SV001'; 
-               
-               // Create the appointment in MariaDB (Added $f_serviceID)
                createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime'], $f_serviceID);
            }
        }
-       // --- END: FOLLOW-UP VACCINATION LOGIC ---
 
-       // --- TAMBAHAN: SYNC KE APPOINTMENT (REQ BY ASYIQIN) ---
-      if (function_exists('updateAppointmentStatusMaria')) {
-        updateAppointmentStatusMaria($appointmentID, $treatmentStatus); 
-    }
+       // Sync Status Logic
+       if (function_exists('updateAppointmentStatusMaria')) {
+            updateAppointmentStatusMaria($appointmentID, $treatmentStatus); 
+       }
 
        return ['success' => true];
 
@@ -162,14 +153,16 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 }
 
 /**
- * Get List
+ * Get List (UPDATED WITH SEARCH & CORRECT SORTING)
  */
-function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
+function getTreatmentsList($conn, $search,  $sort_by, $limit, $page) {
    try {
        $limit = (int)$limit;
        $page = (int)$page;
        $offset = ($page - 1) * $limit;
       
+       // --- 1. DEFINE SORTING LOGIC ---
+       // This ensures 'T001', 'T002' sorts correctly by number, not just string
        $order_clause = match ($sort_by) {
            'id_asc'   => 'CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) ASC',
            'id_desc'  => 'CAST(SUBSTRING(t.treatment_id, 2) AS UNSIGNED) DESC',
@@ -177,25 +170,36 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
            default    => 't.treatment_date DESC',
        };
 
-       // No WHERE clause = Select ALL treatments
-       $count_sql = "SELECT COUNT(*) FROM TREATMENT t";
+       // --- 2. BUILD SEARCH QUERY ---
+       $where_sql = "";
+       $params = [];
+       
+       if (!empty($search)) {
+           $where_sql = "WHERE t.treatment_id LIKE ? OR t.diagnosis LIKE ? OR t.treatment_description LIKE ?";
+           $term = "%" . $search . "%";
+           $params = [$term, $term, $term];
+       }
+
+       // --- 3. COUNT TOTAL ROWS (Filtered) ---
+       $count_sql = "SELECT COUNT(*) FROM TREATMENT t $where_sql";
        $count_stmt = $conn->prepare($count_sql);
-       $count_stmt->execute();
+       $count_stmt->execute($params);
        $total_rows = $count_stmt->fetchColumn();
        
        $total_pages = $total_rows > 0 ? ceil($total_rows / $limit) : 1;
 
+       // --- 4. FETCH DATA (Filtered & Sorted) ---
        $sql = "SELECT t.treatment_id, t.treatment_date, t.treatment_description, 
                       t.treatment_status, t.diagnosis, t.treatment_fee, t.vet_id
                FROM TREATMENT t
+               $where_sql
                ORDER BY $order_clause 
-               LIMIT ? OFFSET ?";
+               LIMIT $limit OFFSET $offset"; 
+               // Note: Binding LIMIT/OFFSET in PDO can be tricky with some drivers when params exist, 
+               // so injecting integers directly is safe here since we cast them to (int) above.
        
        $stmt = $conn->prepare($sql);
-       
-       $stmt->bindValue(1, $limit, PDO::PARAM_INT);
-       $stmt->bindValue(2, $offset, PDO::PARAM_INT);
-       $stmt->execute();
+       $stmt->execute($params);
       
        return [
            'data' => $stmt->fetchAll(PDO::FETCH_ASSOC),
@@ -214,6 +218,7 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
 // =========================================================================
 $insert_success = false;
 $insert_error = "";
+$search = isset($_GET['search']) ? trim($_GET['search']) : ''; // Capture Search Param
 $sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'date_desc';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 5;
@@ -223,7 +228,6 @@ if (isset($_GET['success']) && $_GET['success'] === 'true') $insert_success = tr
 
 // POST
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-   // Use Local MySQL for saving
    $result = processTreatmentForm($connMySQL, $_POST, $vetID, $appointmentID);
   
    if ($result['success']) {
@@ -239,14 +243,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
    }
 }
 
-// GET
+// GET (Fetch List with Search & Sort)
 try {
-    // Use Local MySQL for fetching
     $nextTreatmentID     = getNextTreatmentID($connMySQL);
     $medicine_options    = getMedicines($connMySQL);
     
-    // This will now return ALL treatments because we removed the WHERE clause
-    $treatment_list_data = getTreatmentsList($connMySQL, $appointmentID, $sort_by, $limit, $page);
+    // Pass the $search variable to the function
+    $treatment_list_data = getTreatmentsList($connMySQL, $search, $sort_by, $limit, $page);
 
     $treatments   = $treatment_list_data['data'];
     $total_rows   = $treatment_list_data['total_rows'];

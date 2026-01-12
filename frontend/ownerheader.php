@@ -1,3 +1,19 @@
+<!--ownerheader.php -->
+<?php
+
+/* =========================
+   TOKEN AUTH (FRIEND SIDE)
+========================= */
+require_once "../backend/auth_header.php";
+
+/* =========================
+   ROLE GUARD (OWNER ONLY)
+========================= */
+if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'owner') {
+    die("Unauthorized role");
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -43,17 +59,22 @@
     <!-- ======= Header ======= -->
     <header id="header" class="header d-flex align-items-center fixed-top">
         <div class="header-container container-fluid container-xl d-flex align-items-center justify-content-between">
-            <a href="http://10.48.74.199:81/vetcli/frontend/ownerhome.php" class="logo d-flex align-items-center me-auto me-xl-0">
+            <a href="http://10.48.74.199:81/vetcli/frontend/ownerhome.php<?= urlencode($_SESSION['sso_token']) ?>" class="logo d-flex align-items-center me-auto me-xl-0">
                 <h1 class="sitename">VetClinic</h1>
             </a>
 
 
-            <nav id="navmenu" class="navmenu">
+             <nav id="navmenu" class="navmenu">
                 <ul>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerhome.php" class="active">Home</a></li>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerservices.php">Our Services</a></li>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerabout.php">About Us</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerhome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
 
+                    <li><a href="report_owner.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Dashboard</a></li>
+
+
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerservices.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Our Services</a></li>
+
+
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerabout.php?token=<?= urlencode($_SESSION['sso_token']) ?>">About Us</a></li>
 
                     <li class="dropdown">
                         <a href="#">
@@ -63,33 +84,28 @@
                         <ul>
                             <li>
                                 <a
-                                    href="http://10.48.74.61/vet_clinic/frontend/new_appointment.php">
+                                    href="http://10.48.74.61/Vet_clinic/frontend/new_appointment.php?token=<?= urlencode($_SESSION['sso_token']) ?>">
                                     <i class="fas fa-paw"></i>
                                     <span>Book Appointment</span>
                                 </a>
                             </li>
 
-
                             <li>
                                 <a
-                                    href="http://10.48.74.61/vet_clinic/frontend/appointment_list.php">
+                                    href="http://10.48.74.61/Vet_clinic/frontend/appointment_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">
                                     <i class="fas fa-paw"></i>
                                     <span>Upcoming Appointment</span>
-                                </a>
-                            </li>
-
+                                </a></li>
 
                             <li>
                                 <a
-                                    href="http://10.48.74.61/vet_clinic/frontend/appointment_history.php">
+                                    href="http://10.48.74.61/Vet_clinic/frontend/appointment_history.php?token=<?= urlencode($_SESSION['sso_token']) ?>">
                                     <i class="fas fa-paw"></i>
                                     <span>Appointment History</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
-
-
 
 
                     <li class="dropdown">
@@ -99,37 +115,37 @@
                         </a>
                         <ul>
                             <li>
-                                <a href="http://10.48.74.199:81/vetcli/frontend/newpet.php">
+                                <a href="http://10.48.74.199:81/vetcli/frontend/newpet.php?token=<?= urlencode($_SESSION['sso_token']) ?>">
                                     <i class="fas fa-paw"></i>
                                     <span>New Pet</span>
                                 </a>
                             </li>
                             <li>
-                                <a href="http://10.48.74.199:81/vetcli/frontend/ownerpetlist.php">
+                                <a href="http://10.48.74.199:81/vetcli/frontend/ownerpetlist.php?token=<?= urlencode($_SESSION['sso_token']) ?>">
                                     <i class="fas fa-paw"></i>
                                     <span>View Pet</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
+                    
+                    <li><a
+                            href="http://10.48.74.199:81/vetcli/frontend/medical_hist.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Medical History
+                    </a></li>
 
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/medical_hist.php">Medical History</a></li>
+                    <li><a
+                            href="http://10.48.74.197/vetclinic/frontend/paymentstatusowner.php?token=<?= urlencode($_SESSION['sso_token']) ?>">MyPayment
+                    </a></li>
 
-                    <li>
-                        <a href="http://10.48.74.197/vetclinic/frontend/paymentstatusowner.php?owner_id=<?php echo isset($_SESSION['ownerID']) ? htmlspecialchars($_SESSION['ownerID']) : ''; ?>">
-                            MyPayment
-                        </a>
-                    </li>
-
-
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerprofile.php">MyProfile</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/ownerprofile.php?token=<?= urlencode($_SESSION['sso_token']) ?>">MyProfile</a></li>
                 </ul>
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
-            <a class="btn-getstarted" href="../backend/logout.php">Log out</a>
+            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php">Log out</a>
         </div>
     </header>
     <!-- End Header -->
+
 
 
     <!-- ======= Vendor JS Files ======= -->

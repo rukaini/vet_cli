@@ -1,14 +1,23 @@
 <?php
 
 session_start();
-require_once "../backend/token_auth.php";
 
+// --- 1. LOAD CONTROLLER & BACKEND FIRST (Fixes Blank Page) ---
+// This handles the POST request and Redirects BEFORE any HTML is output
+require_once "../backend/connection.php";
+require_once "../backend/select_query_pg.php"; 
+require_once "../backend/select_query_maria.php";
+require_once "../backend/treatment_controller.php"; 
+
+// --- 2. NOW LOAD THE VISUAL HEADER ---
+require_once "../frontend/vetheader.php";
+
+// --- 3. GET SESSION DATA ---
 $vetID = $_SESSION['vetID'];             
 $appointmentID = $_GET['appointment_id'];
 $vetName = $_SESSION['vetName'] ?? null;
 
-require_once "../backend/treatment_controller.php";
-require_once "../backend/token_auth.php"; // 🔐 ENTRY POINT
+
 
 // If vetName is empty OR it is just the ID (fallback from controller), fetch the real name
 if (empty($vetName) || $vetName == $vetID) {
@@ -76,7 +85,7 @@ if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id'
 }
 // -------------------------------
 
-include "../frontend/vetheader.php";
+
 ?>
 
 <script src="https://cdn.tailwindcss.com"></script>
@@ -102,11 +111,11 @@ include "../frontend/vetheader.php";
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl md:text-4xl font-bold" style="color: var(--primary-color);">Vet Clinic Treatment Portal</h1>
                 <p class="mt-1 text-lg" style="color: #6b7280;">
-                    Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
+                    Logged in as Vet: <strong><?php echo htmlspecialchars($vetName); ?></strong>
                     
-                    <?php if (!empty($vetName) && $vetName !== $vetID): ?>
+                    <!--<?php if (!empty($vetName) && $vetName !== $vetID): ?>
                         (<?php echo htmlspecialchars($vetName); ?>)
-                    <?php endif; ?>
+                    <?php endif; ?>-->
                 </p>
         </div>
     </div>
@@ -174,15 +183,16 @@ include "../frontend/vetheader.php";
             </div>
         </div>
 
-        <?php if ($insert_success): ?>
-            <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
-                <span>Treatment record added successfully! Total fee includes medicine cost.</span>
-                <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>&owner_id=<?php echo $petInfo['owner_id']; ?>" 
-                   class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
-                   Proceed to Payment 
-                </a>
-            </div>
-        <?php endif; ?>
+<?php if ($insert_success): ?>
+    <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
+        <span>Treatment record added successfully! Total fee includes medicine cost.</span>
+        
+        <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo urlencode($_GET['treatment_id']); ?>&vet_id=<?php echo urlencode($vetID); ?>&owner_id=<?php echo urlencode($petInfo['owner_id']); ?>&token=<?php echo urlencode($_SESSION['sso_token'] ?? ''); ?>" 
+           class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
+           Proceed to Payment 
+        </a>
+    </div>
+<?php endif; ?>
         
         <?php if ($insert_error) echo '<div class="error-message rounded-md font-semibold">Insertion Failed: ' . htmlspecialchars($insert_error) . '</div>'; ?>
 
@@ -305,7 +315,7 @@ include "../frontend/vetheader.php";
                             <div class="absolute top-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
 
                             <div class="bg-white px-4 pb-4 pt-5 sm:p-8 sm:pb-6">
-                                <div class="sm:flex sm:items-start">
+                                <div class="flex flex-col items-center">
                                     <div class="mx-auto flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-teal-50 sm:mx-0 sm:h-12 sm:w-12">
                                         <i class="fas fa-calendar-check text-2xl text-teal-600"></i>
                                     </div>
@@ -631,17 +641,17 @@ include "../frontend/vetheader.php";
         checkAvailability(this.value);
     });
 
-    function checkAvailability(date) {
+function checkAvailability(date) {
         if (!date) return;
 
-        // Reset: Show all options first
+        // Reset: Show all options first and enable them
         const options = timeInput.options;
         for (let i = 0; i < options.length; i++) {
             options[i].style.display = 'block';
             options[i].disabled = false;
         }
 
-        // Handle Sunday check first
+        // Handle Sunday check
         const selectedDate = new Date(date);
         const day = selectedDate.getDay(); // 0 = Sunday
         if (day === 0) {
@@ -657,14 +667,15 @@ include "../frontend/vetheader.php";
         fetch(`../backend/check_availability.php?date=${date}&vet_id=${vetID}`)
             .then(response => response.json())
             .then(bookedTimes => {
-                if (!Array.isArray(bookedTimes)) return;
+                // Ensure bookedTimes is an array
+                const bookings = Array.isArray(bookedTimes) ? bookedTimes : [];
 
-                // Loop through options and hide if matched
+                // 1. Disable booked times
                 for (let i = 0; i < options.length; i++) {
                     const optValue = options[i].value; // e.g., "09:00"
                     
-                    // Simple check: does the booked time start with this option value?
-                    const isBooked = bookedTimes.some(booked => booked.startsWith(optValue));
+                    // Check if this time slot is in the booked array
+                    const isBooked = bookings.some(booked => booked.startsWith(optValue));
                     
                     if (isBooked) {
                         options[i].style.display = 'none'; // Hide it
@@ -672,8 +683,22 @@ include "../frontend/vetheader.php";
                     }
                 }
                 
-                if (timeInput.selectedOptions[0].disabled) {
+                // 2. NEW LOGIC: Automatically select the first available time
+                let foundFirstAvailable = false;
+                
+                for (let i = 0; i < options.length; i++) {
+                    // If the option is NOT disabled, it's the first available one
+                    if (!options[i].disabled) {
+                        timeInput.value = options[i].value;
+                        foundFirstAvailable = true;
+                        break; // Stop the loop once we find the first one
+                    }
+                }
+
+                // If the whole day is booked (no available slot found)
+                if (!foundFirstAvailable) {
                     timeInput.value = ""; 
+                    alert("All time slots are fully booked for this date.");
                 }
             })
             .catch(err => console.error("Error checking availability:", err));

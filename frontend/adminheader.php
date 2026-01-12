@@ -1,3 +1,21 @@
+<!--adminheader.php -->
+<?php
+
+/* =========================
+   TOKEN AUTH (FRIEND SIDE)
+========================= */
+require_once "../backend/auth_header.php";
+
+/* =========================
+   ROLE GUARD (ADMIN ONLY)
+========================= */
+if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
+    die("Unauthorized role");
+}
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -29,42 +47,51 @@
 
     <header id="header" class="header d-flex align-items-center fixed-top">
         <div class="header-container container-fluid container-xl d-flex align-items-center justify-content-between">
-            
-            <a href="http://10.48.74.199:81/vetcli/frontend/adminhome.php" class="logo d-flex align-items-center me-auto me-xl-0">
+
+            <a href="http://10.48.74.199:81/vetcli/frontend/adminhome.php?token=<?= urlencode($_SESSION['sso_token']) ?>" class="logo d-flex align-items-center me-auto me-xl-0">
                 <h1 class="sitename">VetClinic</h1>
             </a>
 
             <nav id="navmenu" class="navmenu">
                 <ul>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminhome.php" class="active">Home</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/vethome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
 
-                    <li><a href="http://10.48.74.39/Workshop 2/frontend/report.php">Dashboard</a></li>
+
+                    <li><a href="http://10.48.74.39/Workshop 2/frontend/report_vet.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Dashboard</a></li>
 
                     <li class="dropdown"><a href="#"><span>Veterinarian</span> <i class="bi bi-chevron-down"></i></a>
                         <ul>
-                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vetregister.php">Register Vet</a></li>
-                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vet_avail.php">Add Availability Vet</a></li>
-                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vetlist.php">List Vet</a></li>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vetregister.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Register Vet</a></li>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vet_avail.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Add Availability Vet</a></li>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/vetlist.php?token=<?= urlencode($_SESSION['sso_token']) ?>">List Vet</a></li>
                         </ul>
                     </li>
 
                     <li class="dropdown"><a href="#"><span>Medicine</span> <i class="bi bi-chevron-down"></i></a>
                         <ul>
-                            <li><a href="../frontend/medicinedetails.php">Add Medicine</a></li>
-                            <li><a href="../frontend/admin_medicine_list.php">Stock Medicine</a></li>
+                            <li><a href="../frontend/medicinedetails.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Add Medicine</a></li>
+                            <li><a href="../frontend/admin_medicine_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Stock Medicine</a></li>
                         </ul>
                     </li>
 
-                    <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php">Services</a></li>
+                    <li class="dropdown"><a href="#"><span>Treatment</span> <i
+                                class="bi bi-chevron-down toggle-dropdown"></i></a>
+                        <ul>
+                            
+                            <li><a href="treatment_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">List Treatment</a></li>
+                        </ul>
+                    </li>
 
-                     <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php">Payments</a></li>
+                    <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Services</a></li>
+
+                     <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payments</a></li>
 
 
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php">MyProfile</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php?token=<?= urlencode($_SESSION['sso_token']) ?>">MyProfile</a></li>
                 </ul>
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
 
-            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php">Log out</a>
+            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Log out</a>
         </div>
     </header>
