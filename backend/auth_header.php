@@ -36,9 +36,12 @@ if (!$payload || $payload['exp'] < time()) die("Token expired");
 /* =========================
    4. Create / refresh local session
 ========================= */
-/* =========================
-   4. Create / refresh local session
-========================= */
+
+// FIX: Normalize 'veterinarian' to 'vet' to match your local code
+if (isset($payload['type']) && $payload['type'] === 'veterinarian') {
+    $payload['type'] = 'vet';
+}
+
 $_SESSION['userID']   = $payload['id'];
 $_SESSION['userName'] = $payload['name'];
 $_SESSION['userType'] = $payload['type'];

@@ -46,6 +46,7 @@ switch ($type) {
         $_SESSION['adminname'] = $name;
         break;
     case 'vet':
+    case 'veterinarian':
         $_SESSION['vetID']   = $id;
         $_SESSION['vetname'] = $name;
         break;

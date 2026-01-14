@@ -54,10 +54,17 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
 
             <nav id="navmenu" class="navmenu">
                 <ul>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/vethome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminhome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
 
 
                     <li><a href="http://10.48.74.39/Workshop 2/frontend/report_vet.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Dashboard</a></li>
+
+                    <li class="dropdown"><a href="#"><span>Security</span> <i class="bi bi-chevron-down"></i></a>
+                        <ul>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/admin_security.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Unlocked Account</a></li>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/admin_audit.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Audit Trail</a></li>
+                        </ul>
+                    </li>
 
                     <li class="dropdown"><a href="#"><span>Veterinarian</span> <i class="bi bi-chevron-down"></i></a>
                         <ul>
@@ -84,7 +91,13 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
 
                     <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Services</a></li>
 
-                     <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payments</a></li>
+
+                     <li class="dropdown"><a href="#"><span>Payments</span> <i class="bi bi-chevron-down"></i></a>
+                        <ul>
+                            <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payment History</a></li>
+                            <li><a href="http://10.48.74.197/vetclinic/frontend/paymentaudit.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payment Audit</a></li>
+                        </ul>
+                    </li>
 
 
                     <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php?token=<?= urlencode($_SESSION['sso_token']) ?>">MyProfile</a></li>

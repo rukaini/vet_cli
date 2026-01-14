@@ -1,29 +1,25 @@
 <?php
 session_start();
 
-// --- 1. PROCESS TOKEN & AUTHENTICATION FIRST ---
-// We must include this MANUALLY here so we know the role before loading the visual header
+// --- 1. AUTHENTICATION ---
 require_once "../backend/auth_header.php"; 
 
-// --- 2. DETERMINE ROLE & LOAD HEADER ---
+// --- 2. DETERMINE ROLE ---
 $userType = $_SESSION['userType'] ?? '';
 $isAdmin = ($userType === 'admin');
 $isVet   = ($userType === 'vet');
 
 if ($isAdmin) {
-    // Admin logged in -> Load Admin Header (Expects 'admin' role)
     require_once "../frontend/adminheader.php";
     $currentUserID = $_SESSION['adminID'] ?? 'Admin';
     $roleLabel = "Admin Access";
 } 
 elseif ($isVet) {
-    // Vet logged in -> Load Vet Header (Expects 'vet' role)
     require_once "../frontend/vetheader.php";
     $currentUserID = $_SESSION['vetID'] ?? 'Vet';
     $roleLabel = "Vet Access";
 } 
 else {
-    // Neither -> Unauthorized
     echo "<script>alert('Unauthorized access. Please login.'); window.location.href='../backend/logout.php';</script>";
     exit();
 }
@@ -31,13 +27,12 @@ else {
 // --- 3. INCLUDE BACKEND FILES ---
 require_once "../backend/connection.php";
 require_once "../backend/select_query_pg.php"; 
+require_once "../backend/select_query_maria.php";
 require_once "../backend/treatment_controller.php";
 
-// --- 4. FETCH USER NAME (Robust Logic) ---
+// --- 4. FETCH USER NAME ---
 $displayName = "";
-
 if ($isAdmin) {
-    // Admin Name Fetching
     $displayName = $_SESSION['adminName'] ?? $_SESSION['adminname'] ?? null;
     if (empty($displayName) || $displayName === $currentUserID) {
         if (function_exists('getAdminByIdPG')) {
@@ -49,7 +44,6 @@ if ($isAdmin) {
         }
     }
 } else {
-    // Vet Name Fetching
     $displayName = $_SESSION['vetName'] ?? $_SESSION['vetname'] ?? null;
     if (empty($displayName) || $displayName === $currentUserID) {
         if (function_exists('getVetByIdPG')) {
@@ -61,31 +55,27 @@ if ($isAdmin) {
         }
     }
 }
-
-// Fallback Name
-if (empty($displayName)) {
-    $displayName = $isAdmin ? "Administrator" : "Veterinarian";
-}
+if (empty($displayName)) $displayName = $isAdmin ? "Administrator" : "Veterinarian";
 
 // --- 5. PREPARE DATA FOR TABLE ---
 $sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'id_desc';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-// Database Connection Handling
-$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); 
-$dbMaria = isset($conn) ? $conn : null; 
+// DB Connections
+$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); // MySQL (Treatments)
+$dbMaria = isset($conn) ? $conn : getMariaDBConnection(); // MariaDB (Appointments)
 
 $instructionsMap = [];
 $treatmentTimes = [];
+$treatmentOwners = []; // Will store [treatment_id => ['name' => 'John Doe', 'id' => 'OW001']]
 
-// ... (Rest of your existing data fetching logic remains the same below)
 if (!empty($treatments) && $dbLocal) {
     try {
         $t_ids = array_column($treatments, 'treatment_id');
         if (!empty($t_ids)) {
             $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
 
-            // Fetch Instructions
+            // A. Fetch Instructions (MySQL)
             $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name 
                         FROM MEDICINE_DETAILS md
                         LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
@@ -104,35 +94,78 @@ if (!empty($treatments) && $dbLocal) {
                 ];
             }
             
-            // Fetch Times logic (same as before)...
-            // [Keep your existing logic for fetching times here]
-             $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
+            // B. Fetch Appointment IDs from Treatment Table (MySQL)
+            $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
             $stmtAppt = $dbLocal->prepare($sqlAppt);
             $stmtAppt->execute($t_ids);
             $apptMap = $stmtAppt->fetchAll(PDO::FETCH_KEY_PAIR); // [treatment_id => appointment_id]
 
-            // Second: Get Time from Appointment Table (MariaDB)
+            // C. Fetch Owner ID & Time from Appointment Table (MariaDB)
             if (!empty($apptMap) && $dbMaria) {
                 $a_ids = array_values($apptMap);
-                $a_ids = array_filter($a_ids); // Remove nulls
+                $a_ids = array_filter($a_ids); // Remove empty IDs
                 
                 if (!empty($a_ids)) {
                     $placeholdersA = str_repeat('?,', count($a_ids) - 1) . '?';
-                    $sqlTime = "SELECT appointment_id, time FROM appointment WHERE appointment_id IN ($placeholdersA)";
-                    $stmtTime = $dbMaria->prepare($sqlTime);
-                    $stmtTime->execute($a_ids);
-                    $timeMap = $stmtTime->fetchAll(PDO::FETCH_KEY_PAIR); // [appointment_id => time]
+                    
+                    // Note: 'owner_id' is fetched here from MariaDB
+                    $sqlDetails = "SELECT appointment_id, time, owner_id FROM appointment WHERE appointment_id IN ($placeholdersA)";
+                    $stmtDetails = $dbMaria->prepare($sqlDetails);
+                    $stmtDetails->execute($a_ids);
+                    $apptDetails = $stmtDetails->fetchAll(PDO::FETCH_ASSOC);
 
-                    // Map back to treatment_id
+                    $timeMap = [];
+                    $apptOwnerMap = []; // [appointment_id => owner_id]
+
+                    foreach ($apptDetails as $detail) {
+                        $timeMap[$detail['appointment_id']] = $detail['time'];
+                        
+                        // CRITICAL: Trim whitespace to ensure ID matches PostgreSQL exactly
+                        $cleanOwnerID = trim($detail['owner_id'] ?? '');
+                        if (!empty($cleanOwnerID)) {
+                            $apptOwnerMap[$detail['appointment_id']] = $cleanOwnerID;
+                        }
+                    }
+
+                    // Map Time back to Treatment
                     foreach ($apptMap as $tid => $aid) {
                         if (isset($timeMap[$aid])) {
                             $treatmentTimes[$tid] = $timeMap[$aid];
                         }
                     }
+
+                    // D. Fetch Owner Names from Owner Table (PostgreSQL)
+                    $uniqueOwnerIds = array_unique(array_values($apptOwnerMap));
+                    $ownerNameCache = [];
+
+                    foreach ($uniqueOwnerIds as $oid) {
+                        if (function_exists('getOwnerNameByIdPG')) {
+                            // This function queries PostgreSQL
+                            $oData = getOwnerNameByIdPG($oid);
+                            if ($oData && isset($oData['owner_name'])) {
+                                $ownerNameCache[$oid] = $oData['owner_name'];
+                            } else {
+                                $ownerNameCache[$oid] = 'Unknown (PG)';
+                            }
+                        }
+                    }
+
+                    // E. Final Mapping: Treatment ID -> Owner Name/ID
+                    foreach ($apptMap as $tid => $aid) {
+                        $oid = $apptOwnerMap[$aid] ?? null;
+                        if ($oid) {
+                            $treatmentOwners[$tid] = [
+                                'id'   => $oid,
+                                'name' => $ownerNameCache[$oid] ?? 'Unknown'
+                            ];
+                        }
+                    }
                 }
             }
         }
-    } catch (Exception $e) { }
+    } catch (Exception $e) { 
+        error_log("Error fetching details: " . $e->getMessage());
+    }
 }
 ?>
 
@@ -329,7 +362,8 @@ if (!empty($treatments) && $dbLocal) {
                 <thead>
                     <tr>
                         <th class="w-24">ID</th>
-                        <th class="w-36">Date & Time</th> <th class="w-5/12">Diagnosis & Details</th> 
+                        <th class="w-32">Owner</th> <th class="w-36">Date & Time</th> 
+                        <th class="w-5/12">Diagnosis & Details</th> 
                         <th>Status</th>
                         <th class="text-right">Total Fee</th>
                         <th>Vet ID</th>
@@ -338,7 +372,6 @@ if (!empty($treatments) && $dbLocal) {
                 <tbody class="bg-white">
                     <?php if (isset($treatments) && count($treatments) > 0): ?>
                         <?php foreach ($treatments as $row): 
-                            // Determine Status Badge Color
                             $status_badge = match ($row['treatment_status']) {
                                 'Completed'   => 'badge-green',
                                 'In Progress' => 'badge-blue',
@@ -350,12 +383,26 @@ if (!empty($treatments) && $dbLocal) {
                             $tID = $row['treatment_id'];
                             $hasInstructions = isset($instructionsMap[$tID]) && count($instructionsMap[$tID]) > 0;
                             $timeStr = isset($treatmentTimes[$tID]) ? date('h:i A', strtotime($treatmentTimes[$tID])) : '';
+                            
+                            // Retrieve Owner Info
+                            $ownerInfo = $treatmentOwners[$tID] ?? ['name' => '-', 'id' => '-'];
                         ?>
                         <tr>
                             <td>
                                 <span class="font-bold text-base" style="color: var(--primary-color);">
                                     <?php echo htmlspecialchars($row['treatment_id']); ?>
                                 </span>
+                            </td>
+
+                            <td>
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-gray-700 text-sm">
+                                        <?php echo htmlspecialchars($ownerInfo['name']); ?>
+                                    </span>
+                                    <span class="text-xs text-gray-400 font-mono">
+                                        <?php echo htmlspecialchars($ownerInfo['id']); ?>
+                                    </span>
+                                </div>
                             </td>
 
                             <td>
@@ -426,7 +473,7 @@ if (!empty($treatments) && $dbLocal) {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center py-12">
+                            <td colspan="7" class="text-center py-12">
                                 <div class="flex flex-col items-center justify-center text-gray-400">
                                     <i class="fas fa-folder-open text-4xl mb-3"></i>
                                     <p>No treatments found in the records.</p>

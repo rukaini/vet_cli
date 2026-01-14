@@ -11,13 +11,44 @@ $conn = getMariaDBConnection();
 $connPG = getPOSTGRES();
 global $connMySQL; // Use Local MySQL for Treatments
 
+if (isset($_GET['action']) && $_GET['action'] === 'complete_and_pay' && isset($_GET['treatment_id'])) {
+    $tID = $_GET['treatment_id'];
+    
+    // 1. Update Treatment Status to 'Completed' in MySQL
+    $stmt = $connMySQL->prepare("UPDATE TREATMENT SET treatment_status = 'Completed' WHERE treatment_id = ?");
+    $stmt->execute([$tID]);
+    
+    // 2. Sync Status to MariaDB (if needed)
+    if (isset($_GET['appointment_id']) && function_exists('updateAppointmentStatusMaria')) {
+         updateAppointmentStatusMaria($_GET['appointment_id'], 'Completed');
+    }
+
+    // 3. Automatically Redirect to Payment Page
+    $paymentURL = "http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php";
+    $params = [
+        'treatment_id' => $tID,
+        'vet_id'       => $_GET['vet_id'] ?? '',
+        'owner_id'     => $_GET['owner_id'] ?? '',
+        'token'        => $_GET['token'] ?? ''
+    ];
+    
+    header("Location: " . $paymentURL . "?" . http_build_query($params));
+    exit();
+}
+// Authentication
 // Authentication
 if (isset($_GET['vet_id'])) $_SESSION['vetID'] = trim($_GET['vet_id']);
 if (isset($_GET['vet_name'])) $_SESSION['vetname'] = urldecode(trim($_GET['vet_name']));
 
-if (!isset($_SESSION['vetID'])) die("Unauthorized access.");
-
-$vetID = $_SESSION['vetID'];
+// FIX: Allow both Admin and Vet
+if (isset($_SESSION['vetID'])) {
+    $vetID = $_SESSION['vetID'];
+} elseif (isset($_SESSION['adminID'])) {
+    // If admin is logged in, use adminID or handle accordingly
+    $vetID = $_SESSION['adminID']; 
+} else {
+    die("Unauthorized access.");
+}
 $appointmentID = isset($_GET['appointment_id']) ? trim($_GET['appointment_id']) : '';
 $vetName = $_SESSION['vetname'] ?? $vetID;
 
@@ -63,7 +94,7 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
        
        $conn->beginTransaction();
 
-       $treatmentID = trim($postData['treatmentID']);
+       $treatmentID = getNextTreatmentID($conn);
        $baseFee = (float)($postData['treatmentFee'] ?? 0.00);
        $treatmentDate = $postData['treatmentDate'];
        $treatmentDescription = trim($postData['treatmentDescription']);
@@ -130,12 +161,18 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
        $conn->commit();
 
        // Follow-Up Logic
+$followUpCreated = null; // null means no attempt, true=success, false=fail
+
        if (!empty($postData['followUpDate']) && !empty($postData['followUpTime'])) {
            if (function_exists('createFollowUpAppointment')) {
                $f_ownerID = $postData['ownerID'] ?? ''; 
                $f_petID   = $postData['petID'] ?? '';
                $f_serviceID = $postData['followUpService'] ?? 'SV001'; 
-               createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime'], $f_serviceID);
+               
+               // Capture the result
+               $newApptID = createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime'], $f_serviceID);
+               
+               $followUpCreated = ($newApptID !== false);
            }
        }
 
@@ -144,7 +181,8 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
             updateAppointmentStatusMaria($appointmentID, $treatmentStatus); 
        }
 
-       return ['success' => true];
+       // Return success AND the follow-up status
+       return ['success' => true, 'treatmentID' => $treatmentID, 'followUpStatus' => $followUpCreated];
 
    } catch (Exception $e) {
        if ($conn->inTransaction()) $conn->rollBack();
@@ -232,9 +270,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   
    if ($result['success']) {
        $url_params = [
-           'success' => 'true', 'sort' => $sort_by, 'appointment_id' => $appointmentID, 
-           'vet_id' => $vetID, 'treatment_id' => $_POST['treatmentID']
+           'success' => 'true', 
+           'sort' => $sort_by, 
+           'appointment_id' => $appointmentID, 
+           'vet_id' => $vetID, 
+           'treatment_id' => $result['treatmentID'],
+           'token' => $_SESSION['sso_token'] ?? '' 
        ];
+
+       // CHECK FOLLOW UP STATUS
+       if (isset($result['followUpStatus']) && $result['followUpStatus'] === false) {
+           $url_params['warning'] = 'followup_failed';
+       }
+
        if (isset($_SESSION['vetName'])) $url_params['vetname'] = urlencode($_SESSION['vetName']);
        header("Location: " . $_SERVER['PHP_SELF'] . '?' . http_build_query($url_params));
        exit();

@@ -10,7 +10,18 @@ require_once "../backend/select_query_maria.php";
 require_once "../backend/treatment_controller.php"; 
 
 // --- 2. NOW LOAD THE VISUAL HEADER ---
+require_once "../backend/sso_verify.php";
 require_once "../frontend/vetheader.php";
+$token = $_GET['token'] ?? $_SESSION['sso_token'] ?? null;
+$payload = verifySSOToken($token);
+
+if (!$payload) {
+    die("Unauthorized");
+}
+
+$vetID   = $payload['id'];
+$vetName = $payload['name'];
+$role    = $payload['type'];
 
 // --- 3. GET SESSION DATA ---
 $vetID = $_SESSION['vetID'];             
@@ -132,8 +143,8 @@ if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id'
                 </span>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-                <div class="flex items-center space-x-4 group">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+                <div class="flex items-start space-x-4 group">
                     <div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-100 transition-colors">
                         <i class="fa-regular fa-calendar-check text-lg"></i>
                     </div>
@@ -145,31 +156,37 @@ if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id'
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4 group">
+                <div class="flex items-start space-x-4 group">
                     <div class="flex-shrink-0 w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-orange-100 transition-colors">
                         <i class="fa-solid fa-paw text-lg"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Pet ID</p>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Pet Name</p>
                         <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($petName); ?>
+                        </p>
+                        <p class="text-xs text-gray-400 font-mono mt-0.5">
                             <?php echo htmlspecialchars($petInfo['pet_id']); ?>
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4 group">
+                <div class="flex items-start space-x-4 group">
                     <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors">
                         <i class="fa-regular fa-user text-lg"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Owner ID</p>
+                        <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Owner Name</p>
                         <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
+                            <?php echo htmlspecialchars($ownerName); ?>
+                        </p>
+                        <p class="text-xs text-gray-400 font-mono mt-0.5">
                             <?php echo htmlspecialchars($petInfo['owner_id']); ?>
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4 group">
+                <div class="flex items-start space-x-4 group">
                     <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 group-hover:bg-purple-100 transition-colors">
                         <i class="fa-solid fa-stethoscope text-lg"></i>
                     </div>
@@ -187,7 +204,7 @@ if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id'
     <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
         <span>Treatment record added successfully! Total fee includes medicine cost.</span>
         
-        <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo urlencode($_GET['treatment_id']); ?>&vet_id=<?php echo urlencode($vetID); ?>&owner_id=<?php echo urlencode($petInfo['owner_id']); ?>&token=<?php echo urlencode($_SESSION['sso_token'] ?? ''); ?>" 
+       <a href="?action=complete_and_pay&treatment_id=<?php echo urlencode($_GET['treatment_id']); ?>&appointment_id=<?php echo urlencode($appointmentID); ?>&vet_id=<?php echo urlencode($vetID); ?>&owner_id=<?php echo urlencode($petInfo['owner_id']); ?>&token=<?php echo urlencode($_SESSION['sso_token'] ?? ''); ?>" 
            class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
            Proceed to Payment 
         </a>

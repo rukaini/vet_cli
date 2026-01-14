@@ -24,26 +24,30 @@ try {
 // 2. FRIEND 1: PostgreSQL (User Accounts) 
 // =========================================================================
 function getPOSTGRES(){
+    // Credentials provided by Iqin
     $pg_host = '10.48.74.199';
+    $pg_port = '5432';
     $pg_db   = 'postgres';
     $pg_user = 'postgres';
     $pg_pass = 'password';
+    
     $connPG  = null;
 
     try {
+        // Updated DSN to match your friend's working code
         $connPG = new PDO(
-            "pgsql:host=$pg_host;dbname=$pg_db",
+            "pgsql:host=$pg_host;port=$pg_port;dbname=$pg_db",
             $pg_user,
             $pg_pass
         );
         $connPG->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     } catch(PDOException $e) {
+        // Log error but don't kill the app (return null instead)
         error_log("PostgreSQL Connection failed: " . $e->getMessage());
         return null;
     }
     return $connPG;
 }
-
 
 // =========================================================================
 // 4. TYAA - MYSQL CONNECTION (ADDED)
